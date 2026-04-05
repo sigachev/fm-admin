@@ -1,0 +1,23 @@
+# Dev profile — connects to the shared dev PostgreSQL at finmates.com
+
+datasource:
+  main:
+    url: jdbc:postgresql://finmates.com:5432/main
+    username: user
+    password: ${DB_PASSWORD:Int6859351!}
+  crypto:
+    url: jdbc:postgresql://finmates.com:5432/crypto
+    username: user
+    password: ${DB_PASSWORD:Int6859351!}
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.finmates.com/realms/finmates
+
+logging:
+  level:
+    com.finmates.admin: DEBUG
+    org.springframework.security: DEBUG

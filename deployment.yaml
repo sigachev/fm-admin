@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin
+  template:
+    metadata:
+      labels:
+        app: admin
+    spec:
+      containers:
+        - name: admin
+          image: 10.0.0.70:8090/k8s-admin:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: 1G
+              cpu: 500m
+          ports:
+            - containerPort: 80
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+      nodeSelector:
+        kubernetes.io/hostname: k8s-node-1
+      imagePullSecrets:
+        - name: nexus-registry-secret
