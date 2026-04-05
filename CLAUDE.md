@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## finmates-admin
+## fm-admin
 
 Admin backend service for the FinMates platform.
 Port: 8090 (dev), 80 (k8s)

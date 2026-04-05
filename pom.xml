@@ -13,9 +13,9 @@
     </parent>
 
     <groupId>com.finmates</groupId>
-    <artifactId>finmates-admin</artifactId>
+    <artifactId>fm-admin</artifactId>
     <version>0.0.1</version>
-    <name>finmates-admin</name>
+    <name>fm-admin</name>
     <description>Admin backend service for FinMates platform</description>
 
     <properties>
