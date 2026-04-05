@@ -95,6 +95,10 @@ GET    /api/admin/stats                   platform-wide counts (both DBs)
 - `AdminTrade.side` (BUY|SELL) and `.status` (OPEN|CLOSED|CANCELLED) — VARCHAR in DB
 - `AdminNewsArticle.symbols` — stored as comma-separated string ("BTC,ETH"); parsed to `List<String>` in `AdminNewsService`
 
+## Known Gotchas
+
+- **HikariCP requires `jdbc-url`, not `url`** — when using custom `@ConfigurationProperties` prefix (e.g. `datasource.main.*`), HikariCP does not get Spring Boot's auto-mapping of `url` → `jdbcUrl`. Use `datasource.main.jdbc-url` in properties files. Using `url` with `driver-class-name` causes `IllegalArgumentException: jdbcUrl is required with driverClassName` at startup.
+
 ## Package Layout
 
 ```
