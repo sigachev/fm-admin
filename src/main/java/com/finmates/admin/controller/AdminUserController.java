@@ -2,6 +2,8 @@ package com.finmates.admin.controller;
 
 import com.finmates.admin.dto.AdminUserDetailDto;
 import com.finmates.admin.dto.AdminUserDto;
+import com.finmates.admin.dto.ChangePasswordRequest;
+import com.finmates.admin.service.AdminKeycloakService;
 import com.finmates.admin.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class AdminUserController {
 
     private final AdminUserService userService;
+    private final AdminKeycloakService keycloakService;
 
     @GetMapping
     public Page<AdminUserDto> listUsers(
@@ -45,5 +48,24 @@ public class AdminUserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @PathVariable Long id,
+            @RequestBody ChangePasswordRequest request) {
+        // Load user to get keycloakId
+        AdminUserDetailDto user = userService.getUser(id);
+        String keycloakId = user.getKeycloakId();
+
+        if (keycloakId == null || keycloakId.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "User has no Keycloak ID (registration incomplete)"));
+        }
+
+        // Change password via Keycloak
+        keycloakService.changeUserPassword(keycloakId, request.getNewPassword());
+
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
     }
 }

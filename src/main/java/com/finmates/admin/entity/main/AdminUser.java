@@ -38,6 +38,9 @@ public class AdminUser {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "keycloak_id")
+    private String keycloakId;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 

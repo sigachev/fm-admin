@@ -85,7 +85,8 @@ public class AdminUserService {
         dto.setEmail(u.getEmail());
         dto.setFirstName(u.getFirstName());
         dto.setLastName(u.getLastName());
-        dto.setEnabled(u.getIsActive());
+        dto.setKeycloakId(u.getKeycloakId());
+        dto.setEnabled(u.getIsActive() != null ? u.getIsActive() : false);
         dto.setDeletedAt(u.getDeletedAt());
         dto.setCreatedAt(u.getCreatedAt());
         dto.setUpdatedAt(u.getUpdatedAt());

@@ -17,6 +17,7 @@ public class AdminUserDto {
     private String email;
     private String firstName;
     private String lastName;
+    private String keycloakId;
     @JsonProperty("isActive")
     private boolean enabled;
     private OffsetDateTime deletedAt;

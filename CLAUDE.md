@@ -12,6 +12,8 @@ Java: 21, Spring Boot 3.3.5
 
 Admin-only backend for aggregating user, portfolio, trade, and news data from the `main` and `crypto` databases. All endpoints require `ROLE_ADMIN` JWT claim. Read-mostly: minimal writes (news CRUD only); portfolio/position deletes are admin overrides, not regular user operations.
 
+**This is a READ-ONLY service on both the `main` and `crypto` databases.** Do NOT modify any schema migrations or database structures. The only exception is the `admin_news` table in the `main` database (admin news CRUD feature — not yet implemented). All schema changes must be made in `finmates-main` (for main DB) or `finmates-crypto` (for crypto DB) instead.
+
 ## Build & Run
 
 ```bash
@@ -117,6 +119,8 @@ Both are uppercased and prefixed with `ROLE_` so `@PreAuthorize("hasRole('ADMIN'
 ## Known Gotchas
 
 - **HikariCP requires `jdbc-url`, not `url`** — when using custom `@ConfigurationProperties` prefix (e.g. `datasource.main.*`), HikariCP does not get Spring Boot's auto-mapping of `url` → `jdbcUrl`. Use `datasource.main.jdbc-url` in `application.properties` and `application-dev.properties`. **BUG in `application-k8s.properties`**: uses `url` instead of `jdbc-url`. When deploying to Kubernetes, either rename to `jdbc-url` or the service will fail to initialize with `IllegalArgumentException: jdbcUrl is required with driverClassName`.
+
+- **Nullable `is_active` column in users table** — the `is_active` column in the main DB's `users` table can be NULL for legacy records. `AdminUser.isActive` is a `Boolean` wrapper (not primitive `boolean`) to allow null representation. When mapping to DTOs, always null-check: `dto.setEnabled(u.getIsActive() != null ? u.getIsActive() : false)` to avoid `NullPointerException` on unboxing.
 
 - **Self-signed Keycloak cert (dev profile)** — `auth.finmates.com` uses a self-signed TLS cert that the local JVM cannot validate. Spring Boot's default `JwtDecoder` (issuer-uri discovery) fails with `JwtDecoderInitializationException` / PKIX path building failed on first authenticated request. **Fixed** in `SecurityConfig.java`: a custom `JwtDecoder` bean uses `NimbusJwtDecoder.withJwkSetUri()` with a trust-all `SimpleClientHttpRequestFactory`, bypassing PKIX only for JWK Set fetches. The JWK URI is `{issuer-uri}/protocol/openid-connect/certs`. Issuer claim validation is preserved via `JwtValidators.createDefaultWithIssuer()`.
 
