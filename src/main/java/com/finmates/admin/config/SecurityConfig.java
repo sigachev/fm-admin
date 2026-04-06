@@ -147,8 +147,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "https://finmates.com",
-                "https://www.finmates.com",
-                "https://admin-panel.finmates.com"
+                "https://www.finmates.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
