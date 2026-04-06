@@ -1,32 +1,111 @@
+---
+# Admin API Deployment
+# Spring Boot 3 application serving at port 8090
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: admin-panel
+  name: fm-admin
   namespace: dev
+  labels:
+    app: fm-admin
+    component: admin-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: admin-panel
+      app: fm-admin
   template:
     metadata:
       labels:
-        app: admin-panel
+        app: fm-admin
+        component: admin-api
     spec:
       containers:
-        - name: admin-panel
-          image: 10.0.0.70:8090/k8s-admin:latest
+        - name: fm-admin
+          image: 10.0.0.70:8090/fm-admin:latest
           imagePullPolicy: Always
           resources:
-            limits:
-              memory: 1G
+            requests:
+              memory: 1Gi
               cpu: 500m
+            limits:
+              memory: 2Gi
+              cpu: 2000m
           ports:
-            - containerPort: 80
+            - name: http
+              containerPort: 8090
+              protocol: TCP
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "k8s"
+            - name: SERVER_PORT
+              value: "8090"
+            # Database configuration
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fm-admin-config
+                  key: db.url
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: db.username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: db.password
+            # Aggregator service
+            - name: AGGREGATOR_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fm-admin-config
+                  key: aggregator.url
+            # Keycloak configuration
+            - name: KEYCLOAK_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fm-admin-config
+                  key: keycloak.url
+            - name: KEYCLOAK_REALM
+              value: "finmates"
+            - name: KEYCLOAK_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: keycloak.admin.username
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: keycloak.admin.password
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8090
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8090
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8090
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 3
+            failureThreshold: 30
       nodeSelector:
         kubernetes.io/hostname: k8s-node-1
       imagePullSecrets:
         - name: nexus-registry-secret
+      terminationGracePeriodSeconds: 30
