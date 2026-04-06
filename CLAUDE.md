@@ -10,9 +10,13 @@ Java: 21, Spring Boot 3.3.5
 
 ## Service Purpose
 
-Admin-only backend for aggregating user, portfolio, trade, and news data from the `main` and `crypto` databases. All endpoints require `ROLE_ADMIN` JWT claim. Read-mostly: minimal writes (news CRUD only); portfolio/position deletes are admin overrides, not regular user operations.
+Admin-only backend for aggregating user, portfolio, trade, and news data from the `main`, `crypto`, and `crypto_aggregator` databases. All endpoints require `ROLE_ADMIN` JWT claim. Read-mostly: minimal writes (news CRUD only); portfolio/position deletes are admin overrides, not regular user operations.
 
-**This is a READ-ONLY service on both the `main` and `crypto` databases.** Do NOT modify any schema migrations or database structures. The only exception is the `admin_news` table in the `main` database (admin news CRUD feature — not yet implemented). All schema changes must be made in `finmates-main` (for main DB) or `finmates-crypto` (for crypto DB) instead.
+**This is a READ-ONLY service on `main` and `crypto` databases.** Do NOT modify schemas there. The only exceptions are:
+- `admin_news` table in `main` — admin news CRUD (created via V12 migration in finmates-main)
+- `news_article` + `news_source` in `crypto_aggregator` — admin news is **mirrored** here via `AdminNewsService` for public display (best-effort, non-blocking)
+
+All schema changes must be made in `finmates-main` (for main DB), `finmates-crypto` (for crypto DB), or `fm-crypto-aggregator` (for aggregator DB) instead.
 
 ## Build & Run
 
@@ -46,6 +50,7 @@ Connects to TWO databases simultaneously — owns neither schema:
 |------------|-----|-------------|
 | `mainDataSource` (@Primary) | `main` (finmates-main DB) | `users`, `admin_news` |
 | `cryptoDataSource` | `crypto` | `portfolios`, `portfolio_trades`, `portfolio_positions` |
+| `aggregatorDataSource` | `crypto_aggregator` | `news_article`, `news_source` (mirroring admin news) |
 
 **Flyway is DISABLED** — this service never creates or modifies schemas.
 The `admin_news` table was created manually (V11__admin_news.sql executed directly against
@@ -101,12 +106,27 @@ DELETE /api/admin/news/{id}              delete article
 GET    /api/admin/stats                   platform-wide counts (both DBs)
 ```
 
+## Admin News Mirroring to Public Feed
+
+When an admin creates/updates/deletes news via `/api/admin/news`:
+1. Changes persist to `main.admin_news` (finmates-main DB)
+2. `AdminNewsService` **mirrors** the changes to `crypto_aggregator.news_article` (best-effort, non-blocking)
+   - Uses `AggregatorNewsSourceRepository` + `AggregatorNewsArticleRepository` (JPA)
+   - "FinMates" source (tier=0) seeded by V5 migration in fm-crypto-aggregator
+   - Admin article ID stored as `external_id` for deduplication
+   - Failures logged but don't rollback the admin DB write
+3. Frontend fetches from `/api/news` (fm-crypto-data), which reads both RSS + mirrored admin articles
+4. Detail page shows `content` field + link to original URL
+
+**Important:** Do NOT modify `news_article` or `news_source` tables directly in `crypto_aggregator` DB. All admin news goes through this mirroring flow.
+
 ## Entity Notes
 
 - `AdminUser.isActive` → `is_active` column in `users` table; `isActive=false` + `deletedAt=now()` = soft delete
 - `AdminPortfolio.type` / `.provider` — stored as VARCHAR in DB (EnumType.STRING in finmates-crypto)
 - `AdminTrade.side` (BUY|SELL) and `.status` (OPEN|CLOSED|CANCELLED) — VARCHAR in DB
 - `AdminNewsArticle.symbols` — stored as comma-separated string ("BTC,ETH"); parsed to `List<String>` in `AdminNewsService`
+- `AdminNewsArticle.content` — custom editorial summary (not copied from external sources); mirrored to `news_article.content`
 
 ## Role Extraction (Keycloak JWT)
 
