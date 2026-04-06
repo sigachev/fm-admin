@@ -18,7 +18,7 @@ public class AdminTokenDto {
     private Long id;
     private String symbol;
     private String name;
-    private boolean isActive;
+    private Boolean isActive;  // Use wrapper Boolean to handle nulls properly
     private Integer rank;
     private Instant createdAt;
 }

@@ -16,6 +16,7 @@ public class CreateNewsRequest {
     private String title;
 
     private String summary;
+    private String content;
     private String url;
     private String source = "FinMates";
     private boolean isBreaking;

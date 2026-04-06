@@ -39,6 +39,9 @@ public class AdminNewsArticle {
     private boolean isBreaking;
 
     /** Comma-separated symbol list, e.g. "BTC,ETH". Parsed to List<String> in the service layer. */
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
     @Column(name = "symbols", length = 500)
     private String symbols;
 

@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: admin
+  name: admin-panel
   namespace: dev
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: admin
+      app: admin-panel
   template:
     metadata:
       labels:
-        app: admin
+        app: admin-panel
     spec:
       containers:
-        - name: admin
+        - name: admin-panel
           image: 10.0.0.70:8090/k8s-admin:latest
           imagePullPolicy: Always
           resources:

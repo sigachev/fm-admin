@@ -15,6 +15,7 @@ public class AdminNewsDto {
     private Long id;
     private String title;
     private String summary;
+    private String content;
     private String url;
     private String source;
     private boolean isBreaking;
