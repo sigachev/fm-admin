@@ -1,10 +1,13 @@
 package com.finmates.admin.controller;
 
 import com.finmates.admin.dto.AdminTokenDto;
+import com.finmates.admin.dto.AvailableTokenDto;
 import com.finmates.admin.dto.CreateTokenRequest;
 import com.finmates.admin.dto.SourceStatusDto;
+import com.finmates.admin.dto.SourceTokensDto;
 import com.finmates.admin.dto.UpdateTokenRequest;
 import com.finmates.admin.service.AdminTokenService;
+import com.finmates.admin.service.TokenDiscoveryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +30,7 @@ import java.util.List;
 public class AdminTokenController {
 
     private final AdminTokenService tokenService;
+    private final TokenDiscoveryService discoveryService;
 
     /**
      * List all tokens with optional search.
@@ -88,5 +92,37 @@ public class AdminTokenController {
     @GetMapping("/sources/health")
     public List<SourceStatusDto> getSourceHealth() {
         return tokenService.getSourceHealth();
+    }
+
+    /**
+     * Get available tokens per exchange source.
+     * Useful for discovering which tokens each source supports.
+     */
+    @GetMapping("/discovery/sources")
+    public List<SourceTokensDto> getSourceTokens() {
+        return discoveryService.getSourceTokens();
+    }
+
+    /**
+     * Get all unique available tokens across all sources.
+     * Marks which ones are already in the system.
+     */
+    @GetMapping("/discovery/available")
+    public List<AvailableTokenDto> getAvailableTokens() {
+        return discoveryService.getAllAvailableTokens();
+    }
+
+    /**
+     * Add a new token to the system from available sources.
+     */
+    @PostMapping("/discovery/add")
+    public ResponseEntity<AdminTokenDto> addTokenFromDiscovery(
+            @RequestParam String symbol,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer rank) {
+        discoveryService.addToken(symbol, name, rank);
+        discoveryService.reloadAggregatorAssets();
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(tokenService.getToken(symbol));
     }
 }

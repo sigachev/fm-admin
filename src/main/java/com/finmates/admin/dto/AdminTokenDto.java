@@ -20,5 +20,8 @@ public class AdminTokenDto {
     private String name;
     private Boolean isActive;  // Use wrapper Boolean to handle nulls properly
     private Integer rank;
+    private String logoUrl;
+    private String description;
     private Instant createdAt;
+    private Instant updatedAt;
 }
