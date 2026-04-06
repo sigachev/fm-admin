@@ -3,7 +3,6 @@ package com.finmates.admin.controller;
 import com.finmates.admin.dto.AdminTokenDto;
 import com.finmates.admin.dto.AvailableTokenDto;
 import com.finmates.admin.dto.CreateTokenRequest;
-import com.finmates.admin.dto.SourceStatusDto;
 import com.finmates.admin.dto.SourceTokensDto;
 import com.finmates.admin.dto.UpdateTokenRequest;
 import com.finmates.admin.service.AdminTokenService;
@@ -84,14 +83,6 @@ public class AdminTokenController {
     public ResponseEntity<Void> deleteToken(@PathVariable String symbol) {
         tokenService.deleteToken(symbol);
         return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * Get exchange source health status.
-     */
-    @GetMapping("/sources/health")
-    public List<SourceStatusDto> getSourceHealth() {
-        return tokenService.getSourceHealth();
     }
 
     /**
