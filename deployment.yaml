@@ -24,6 +24,21 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: k8s
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: DB_PASSWORD
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fm-admin-secrets
+                  key: KEYCLOAK_ADMIN_PASSWORD
           resources:
             limits:
               cpu: 500m
