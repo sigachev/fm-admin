@@ -1,11 +1,11 @@
 pipeline {
-     agent any
+    agent any
 
-       environment {
+    environment {
         DEPLOYMENT_NAME = "admin-panel"
 
         DOCKER_IMAGE = "k8s-${DEPLOYMENT_NAME}"
-        K8S_NAMESPACE = "k8s"
+        K8S_NAMESPACE = "dev"
         KUBECONFIG_CREDENTIALS_ID = 'k8s-creds'
 
         NEXUS_CREDENTIALS_ID = "nexus-user-credentials"
@@ -13,7 +13,6 @@ pipeline {
         NEXUS_USER = "jenkins"
         NEXUS_PWD = "int68593"
     }
-
 
     stages {
         stage('Checkout') {
@@ -24,50 +23,43 @@ pipeline {
             }
         }
 
-
         stage('Build and Test') {
             steps {
                 script {
-                    sh "mvn clean package"
+                    sh "./mvnw clean package"
                 }
             }
         }
-
 
         stage('Build Docker Image') {
             steps {
                 script {
-                   sh "docker build -t ${DOCKER_IMAGE} ."
-                   sh "docker tag ${DOCKER_IMAGE}:latest ${REPOSITORY_URI}/${DOCKER_IMAGE}:latest"
-                   }
+                    sh "docker build -t ${DOCKER_IMAGE} ."
+                    sh "docker tag ${DOCKER_IMAGE}:latest ${REPOSITORY_URI}/${DOCKER_IMAGE}:latest"
+                }
             }
         }
 
-
         stage('Upload to Nexus') {
-          steps{
-             script {
-                sh "docker login -u ${NEXUS_USER} -p ${NEXUS_PWD} ${REPOSITORY_URI}"
-                sh "docker push ${REPOSITORY_URI}/${DOCKER_IMAGE}"
-                sh "docker rmi ${DOCKER_IMAGE}"
-                sh "docker logout ${REPOSITORY_URI}"
+            steps {
+                script {
+                    sh "docker login -u ${NEXUS_USER} -p ${NEXUS_PWD} ${REPOSITORY_URI}"
+                    sh "docker push ${REPOSITORY_URI}/${DOCKER_IMAGE}:latest"
+                    sh "docker rmi ${DOCKER_IMAGE}:latest ${REPOSITORY_URI}/${DOCKER_IMAGE}:latest"
+                    sh "docker logout ${REPOSITORY_URI}"
                 }
-               }
+            }
         }
-
 
         stage('Deploy to Kubernetes') {
-           steps {
-             script {
-               sh 'pwd'
-               sh 'ls'
-               sh 'kubectl apply -f deployment.yaml -n dev'
-               sh "kubectl rollout restart deployment/${env.DEPLOYMENT_NAME} -n dev"
-               }
-             }
+            steps {
+                script {
+                    sh 'kubectl apply -f deployment.yaml -n dev || true'
+                    sh "kubectl rollout restart deployment/${env.DEPLOYMENT_NAME} -n ${env.K8S_NAMESPACE}"
+                }
+            }
         }
-      }
-
+    }
 
     post {
         always {

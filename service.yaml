@@ -1,20 +1,21 @@
----
-# Admin API Service
-# Exposes fm-admin deployment on port 8090
 apiVersion: v1
 kind: Service
 metadata:
-  name: fm-admin
+  name: admin-panel
   namespace: dev
-  labels:
-    app: fm-admin
-    component: admin-api
+  annotations: {}
 spec:
-  type: ClusterIP
-  selector:
-    app: fm-admin
   ports:
-    - name: http
-      port: 8090
-      targetPort: 8090
-      protocol: TCP
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  selector:
+    app: admin-panel
+  type: LoadBalancer
+  sessionAffinity: None
+  externalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  allocateLoadBalancerNodePorts: true
+  internalTrafficPolicy: Cluster
