@@ -1,27 +1,27 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: admin-panel-ingress
+  name: admin-api-ingress
   namespace: dev
   annotations:
     kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/default-backend: admin-panel-ingress
-    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+    # Disable path rewriting so /api/admin/* reaches the backend as-is
+    nginx.ingress.kubernetes.io/use-regex: 'true'
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - admin-panel.finmates.com
+        - admin-api.finmates.com
       secretName: tls-secret
   rules:
-    - host: admin-panel.finmates.com
+    - host: admin-api.finmates.com
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
-                name: admin-panel
+                name: fm-admin
                 port:
-                  number: 80
+                  number: 8090
