@@ -99,6 +99,8 @@ GET    /api/admin/stats                   platform-wide counts (both DBs)
 
 - **HikariCP requires `jdbc-url`, not `url`** — when using custom `@ConfigurationProperties` prefix (e.g. `datasource.main.*`), HikariCP does not get Spring Boot's auto-mapping of `url` → `jdbcUrl`. Use `datasource.main.jdbc-url` in properties files. Using `url` with `driver-class-name` causes `IllegalArgumentException: jdbcUrl is required with driverClassName` at startup.
 
+- **Self-signed Keycloak cert (dev profile)** — `auth.finmates.com` uses a self-signed TLS cert that the local JVM cannot validate. Spring Boot's default `JwtDecoder` (issuer-uri discovery) fails with `JwtDecoderInitializationException` / PKIX path building failed on first authenticated request. **Fixed** in `SecurityConfig.java`: a custom `JwtDecoder` bean uses `NimbusJwtDecoder.withJwkSetUri()` with a trust-all `SimpleClientHttpRequestFactory`, bypassing PKIX only for JWK Set fetches. The JWK URI is `{issuer-uri}/protocol/openid-connect/certs`. Issuer claim validation is preserved via `JwtValidators.createDefaultWithIssuer()`.
+
 ## Package Layout
 
 ```
