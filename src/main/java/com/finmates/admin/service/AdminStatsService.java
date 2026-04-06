@@ -21,6 +21,7 @@ public class AdminStatsService {
     private final AdminTradeRepository tradeRepository;
     private final AdminPositionRepository positionRepository;
     private final AdminNewsRepository newsRepository;
+    private final AdminTokenService tokenService;
 
     public AdminStatsDto getStats() {
         OffsetDateTime now = OffsetDateTime.now();
@@ -34,6 +35,8 @@ public class AdminStatsService {
         long totalTrades = tradeRepository.count();
         long totalPositions = positionRepository.count();
         long totalNewsArticles = newsRepository.count();
+        long totalTokens = tokenService.getTotalTokenCount();
+        long activeTokens = tokenService.getActiveTokenCount();
 
         return new AdminStatsDto(
                 totalUsers,
@@ -43,7 +46,9 @@ public class AdminStatsService {
                 totalPortfolios,
                 totalTrades,
                 totalPositions,
-                totalNewsArticles
+                totalNewsArticles,
+                totalTokens,
+                activeTokens
         );
     }
 }

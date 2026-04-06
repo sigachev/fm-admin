@@ -14,12 +14,19 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import jakarta.persistence.EntityManagerFactory;
+import org.springframework.web.client.RestTemplate;
 import javax.sql.DataSource;
 import java.util.Map;
 
 @Configuration
 @EnableTransactionManagement
 public class DataSourceConfig {
+
+    // ── RestTemplate for HTTP calls (e.g., AggregatorClient) ────────────────────────
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
 
     // ── EntityManagerFactoryBuilder (manual — HibernateJpaAutoConfiguration excluded) ──
 
@@ -87,6 +94,31 @@ public class DataSourceConfig {
     @Bean("cryptoTransactionManager")
     public PlatformTransactionManager cryptoTransactionManager(
             @Qualifier("cryptoEntityManagerFactory") EntityManagerFactory emf) {
+        return new JpaTransactionManager(emf);
+    }
+
+    // ── Aggregator datasource (crypto_aggregator DB — assets, prices) ─────────────────
+
+    @Bean("aggregatorDataSource")
+    @ConfigurationProperties(prefix = "datasource.aggregator")
+    public DataSource aggregatorDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    @Bean("aggregatorEntityManagerFactory")
+    public LocalContainerEntityManagerFactoryBean aggregatorEntityManagerFactory(
+            EntityManagerFactoryBuilder builder,
+            @Qualifier("aggregatorDataSource") DataSource dataSource) {
+        return builder
+                .dataSource(dataSource)
+                .packages("com.finmates.admin.entity.aggregator")
+                .persistenceUnit("aggregator")
+                .build();
+    }
+
+    @Bean("aggregatorTransactionManager")
+    public PlatformTransactionManager aggregatorTransactionManager(
+            @Qualifier("aggregatorEntityManagerFactory") EntityManagerFactory emf) {
         return new JpaTransactionManager(emf);
     }
 }
