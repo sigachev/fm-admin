@@ -86,6 +86,7 @@ public class AdminUserService {
         dto.setFirstName(u.getFirstName());
         dto.setLastName(u.getLastName());
         dto.setEnabled(u.isActive());
+        dto.setDeletedAt(u.getDeletedAt());
         dto.setCreatedAt(u.getCreatedAt());
         dto.setUpdatedAt(u.getUpdatedAt());
     }

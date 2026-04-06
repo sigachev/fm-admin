@@ -1,5 +1,6 @@
 package com.finmates.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -16,7 +17,9 @@ public class AdminUserDto {
     private String email;
     private String firstName;
     private String lastName;
+    @JsonProperty("isActive")
     private boolean enabled;
+    private OffsetDateTime deletedAt;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }
