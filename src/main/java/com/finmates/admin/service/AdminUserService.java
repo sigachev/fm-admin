@@ -55,7 +55,7 @@ public class AdminUserService {
     public AdminUserDto toggleEnabled(Long id, boolean enabled) {
         AdminUser user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id));
-        user.setActive(enabled);
+        user.setIsActive(enabled);
         user.setUpdatedAt(OffsetDateTime.now());
         return toDto(userRepository.save(user));
     }
@@ -65,7 +65,7 @@ public class AdminUserService {
         AdminUser user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id));
         user.setDeletedAt(OffsetDateTime.now());
-        user.setActive(false);
+        user.setIsActive(false);
         user.setUpdatedAt(OffsetDateTime.now());
         userRepository.save(user);
         log.info("Admin soft-deleted user id={} username={}", id, user.getUsername());
@@ -85,7 +85,7 @@ public class AdminUserService {
         dto.setEmail(u.getEmail());
         dto.setFirstName(u.getFirstName());
         dto.setLastName(u.getLastName());
-        dto.setEnabled(u.isActive());
+        dto.setEnabled(u.getIsActive());
         dto.setDeletedAt(u.getDeletedAt());
         dto.setCreatedAt(u.getCreatedAt());
         dto.setUpdatedAt(u.getUpdatedAt());

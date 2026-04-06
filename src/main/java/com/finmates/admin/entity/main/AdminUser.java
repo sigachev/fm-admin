@@ -36,7 +36,7 @@ public class AdminUser {
     private String lastName;
 
     @Column(name = "is_active")
-    private boolean isActive;
+    private Boolean isActive = true;
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
