@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-panel
+  namespace: dev
+  annotations: {}
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8090
+  selector:
+    app: admin-panel
+  type: LoadBalancer
+  sessionAffinity: None
+  externalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  allocateLoadBalancerNodePorts: true
+  internalTrafficPolicy: Cluster
