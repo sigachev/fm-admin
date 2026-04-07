@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -82,5 +83,13 @@ public class AdminTokenSourceController {
         boolean enabled = body.getOrDefault("enabled", true);
         SourceTickerConfigDto result = service.toggleTicker(sourceId, symbol, enabled);
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(summary = "Discover and seed tokens from all exchange REST APIs",
+               description = "Inserts newly discovered USD pairs with is_enabled=false. Existing rows unchanged.")
+    @PostMapping("/discover")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Integer>> discoverTokens() {
+        return ResponseEntity.ok(service.discoverTokens());
     }
 }

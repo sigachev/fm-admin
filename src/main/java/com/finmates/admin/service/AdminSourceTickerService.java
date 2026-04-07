@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class AdminSourceTickerService {
 
     private final AggregatorSourceTickerConfigRepository repo;
+    private final AggregatorClient aggregatorClient;
 
     /**
      * Get all ticker configurations grouped by source
@@ -50,6 +51,15 @@ public class AdminSourceTickerService {
             .map(this::toDto)
             .orElseThrow(() -> new IllegalArgumentException(
                 "Ticker not found: " + sourceId + "/" + symbol));
+    }
+
+    /**
+     * Discover all available tokens from exchange REST APIs and seed source_ticker_config.
+     * Newly discovered tokens are inserted with is_enabled=false.
+     * Returns a map of sourceId -> count of newly inserted rows.
+     */
+    public Map<String, Integer> discoverTokens() {
+        return aggregatorClient.discoverAndSeedTokens();
     }
 
     private SourceTickerConfigDto toDto(AggregatorSourceTickerConfig entity) {

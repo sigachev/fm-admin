@@ -167,4 +167,37 @@ public class AggregatorClient {
             // Don't throw — graceful degradation if aggregator is down
         }
     }
+
+    /**
+     * Discover and seed all available tokens from exchange REST APIs.
+     * Calls `POST /internal/v1/discovery/seed`.
+     * Returns a map of sourceId -> count of newly inserted rows.
+     */
+    public java.util.Map<String, Integer> discoverAndSeedTokens() {
+        try {
+            String url = aggregatorUrl + "/internal/v1/discovery/seed";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Service-Name", "fm-admin");
+
+            HttpEntity<String> request = new HttpEntity<>(headers);
+
+            ResponseEntity<java.util.Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    request,
+                    java.util.Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("Token discovery and seeding completed: {}", response.getBody());
+                return response.getBody();
+            }
+            log.warn("Token discovery returned status: {}", response.getStatusCodeValue());
+            return Collections.emptyMap();
+
+        } catch (Exception e) {
+            log.warn("Token discovery and seeding failed: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
 }
