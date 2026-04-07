@@ -62,6 +62,13 @@ public class AdminSourceTickerService {
         return aggregatorClient.discoverAndSeedTokens();
     }
 
+    /**
+     * Get available tokens from a specific source for browsing/importing
+     */
+    public List<java.util.Map<String, Object>> getAvailableTokens(String sourceId, boolean onlyNew) {
+        return aggregatorClient.getAvailableTokens(sourceId, onlyNew);
+    }
+
     private SourceTickerConfigDto toDto(AggregatorSourceTickerConfig entity) {
         return new SourceTickerConfigDto(
             entity.getId(),

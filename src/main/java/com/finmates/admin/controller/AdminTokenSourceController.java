@@ -92,4 +92,14 @@ public class AdminTokenSourceController {
     public ResponseEntity<Map<String, Integer>> discoverTokens() {
         return ResponseEntity.ok(service.discoverTokens());
     }
+
+    @Operation(summary = "Get available tokens from a specific source",
+               description = "Browse tokens available on an exchange for selective import")
+    @GetMapping("/available")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getAvailableTokens(
+            @RequestParam String sourceId,
+            @RequestParam(defaultValue = "false") boolean onlyNew) {
+        return ResponseEntity.ok(service.getAvailableTokens(sourceId, onlyNew));
+    }
 }

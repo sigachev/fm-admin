@@ -200,4 +200,40 @@ public class AggregatorClient {
             return Collections.emptyMap();
         }
     }
+
+    /**
+     * Get available tokens from a specific source for browsing/importing.
+     * Calls `GET /internal/v1/discovery/available?sourceId={sourceId}&onlyNew={onlyNew}`.
+     *
+     * @param sourceId source ID (kraken, coinbase, okx, gemini, hyperliquid)
+     * @param onlyNew if true, only return tokens not yet in our config
+     * @return List of available tokens from the source; empty list if call fails
+     */
+    public List<java.util.Map<String, Object>> getAvailableTokens(String sourceId, boolean onlyNew) {
+        try {
+            String url = aggregatorUrl + "/internal/v1/discovery/available?sourceId=" + sourceId + "&onlyNew=" + onlyNew;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Service-Name", "fm-admin");
+
+            HttpEntity<String> request = new HttpEntity<>(headers);
+
+            ResponseEntity<java.util.List> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    request,
+                    java.util.List.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+
+            log.warn("Get available tokens returned status: {}", response.getStatusCodeValue());
+            return Collections.emptyList();
+
+        } catch (Exception e) {
+            log.warn("Failed to fetch available tokens from source {}: {}", sourceId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
 }
