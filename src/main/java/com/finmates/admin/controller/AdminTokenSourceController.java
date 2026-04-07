@@ -86,24 +86,21 @@ public class AdminTokenSourceController {
         return ResponseEntity.ok(result);
     }
 
-    // Token discovery disabled - causes Netty buffer errors with exchange REST APIs
-    // Users can manually add tokens via admin interface instead
+    @Operation(summary = "Discover and seed tokens from all exchange REST APIs",
+               description = "Inserts newly discovered USD pairs with is_enabled=false. Existing rows unchanged.")
+    @PostMapping("/discover")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Integer>> discoverTokens() {
+        return ResponseEntity.ok(service.discoverTokens());
+    }
 
-    // @Operation(summary = "Discover and seed tokens from all exchange REST APIs",
-    //            description = "Inserts newly discovered USD pairs with is_enabled=false. Existing rows unchanged.")
-    // @PostMapping("/discover")
-    // @PreAuthorize("hasRole('ADMIN')")
-    // public ResponseEntity<Map<String, Integer>> discoverTokens() {
-    //     return ResponseEntity.ok(service.discoverTokens());
-    // }
-
-    // @Operation(summary = "Get available tokens from a specific source",
-    //            description = "Browse tokens available on an exchange for selective import")
-    // @GetMapping("/available")
-    // @PreAuthorize("hasRole('ADMIN')")
-    // public ResponseEntity<List<java.util.Map<String, Object>>> getAvailableTokens(
-    //         @RequestParam String sourceId,
-    //         @RequestParam(defaultValue = "false") boolean onlyNew) {
-    //     return ResponseEntity.ok(service.getAvailableTokens(sourceId, onlyNew));
-    // }
+    @Operation(summary = "Get available tokens from a specific source",
+               description = "Browse tokens available on an exchange for selective import")
+    @GetMapping("/available")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getAvailableTokens(
+            @RequestParam String sourceId,
+            @RequestParam(defaultValue = "false") boolean onlyNew) {
+        return ResponseEntity.ok(service.getAvailableTokens(sourceId, onlyNew));
+    }
 }
