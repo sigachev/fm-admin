@@ -1,6 +1,7 @@
 package com.finmates.admin.service;
 
 import com.finmates.admin.dto.AvailableTokenDto;
+import com.finmates.admin.dto.SourceAvailableTokenDto;
 import com.finmates.admin.dto.SourceStatusDto;
 import com.finmates.admin.dto.SourceTokensDto;
 import lombok.extern.slf4j.Slf4j;
@@ -209,7 +210,7 @@ public class AggregatorClient {
      * @param onlyNew if true, only return tokens not yet in our config
      * @return List of available tokens from the source; empty list if call fails
      */
-    public List<java.util.Map<String, Object>> getAvailableTokens(String sourceId, boolean onlyNew) {
+    public List<SourceAvailableTokenDto> getAvailableTokens(String sourceId, boolean onlyNew) {
         try {
             String url = aggregatorUrl + "/internal/v1/discovery/available?sourceId=" + sourceId + "&onlyNew=" + onlyNew;
             HttpHeaders headers = new HttpHeaders();
@@ -217,15 +218,15 @@ public class AggregatorClient {
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
-            ResponseEntity<java.util.List> response = restTemplate.exchange(
+            ResponseEntity<SourceAvailableTokenDto[]> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     request,
-                    java.util.List.class
+                    SourceAvailableTokenDto[].class
             );
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return response.getBody();
+                return Arrays.asList(response.getBody());
             }
 
             log.warn("Get available tokens returned status: {}", response.getStatusCodeValue());

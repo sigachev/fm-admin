@@ -1,5 +1,6 @@
 package com.finmates.admin.service;
 
+import com.finmates.admin.dto.SourceAvailableTokenDto;
 import com.finmates.admin.dto.SourceTickerConfigDto;
 import com.finmates.admin.entity.aggregator.AggregatorSourceTickerConfig;
 import com.finmates.admin.repository.aggregator.AggregatorSourceTickerConfigRepository;
@@ -65,7 +66,7 @@ public class AdminSourceTickerService {
     /**
      * Get available tokens from a specific source for browsing/importing
      */
-    public List<java.util.Map<String, Object>> getAvailableTokens(String sourceId, boolean onlyNew) {
+    public List<SourceAvailableTokenDto> getAvailableTokens(String sourceId, boolean onlyNew) {
         return aggregatorClient.getAvailableTokens(sourceId, onlyNew);
     }
 

@@ -1,5 +1,6 @@
 package com.finmates.admin.controller;
 
+import com.finmates.admin.dto.SourceAvailableTokenDto;
 import com.finmates.admin.dto.SourceTickerConfigDto;
 import com.finmates.admin.service.AdminSourceTickerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -98,7 +99,7 @@ public class AdminTokenSourceController {
                description = "Browse tokens available on an exchange for selective import")
     @GetMapping("/available")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<java.util.Map<String, Object>>> getAvailableTokens(
+    public ResponseEntity<List<SourceAvailableTokenDto>> getAvailableTokens(
             @RequestParam String sourceId,
             @RequestParam(defaultValue = "false") boolean onlyNew) {
         return ResponseEntity.ok(service.getAvailableTokens(sourceId, onlyNew));
