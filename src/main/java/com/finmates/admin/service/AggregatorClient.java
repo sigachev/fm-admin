@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
@@ -173,6 +174,7 @@ public class AggregatorClient {
      * Discover and seed all available tokens from exchange REST APIs.
      * Calls `POST /internal/v1/discovery/seed`.
      * Returns a map of sourceId -> count of newly inserted rows.
+     * Note: This operation can be long-running (30+ seconds) depending on exchange API response times.
      */
     public java.util.Map<String, Integer> discoverAndSeedTokens() {
         try {
@@ -196,6 +198,10 @@ public class AggregatorClient {
             log.warn("Token discovery returned status: {}", response.getStatusCodeValue());
             return Collections.emptyMap();
 
+        } catch (ResourceAccessException e) {
+            String errorMsg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+            log.warn("Aggregator service unavailable, timeout, or slow response during token discovery: {}", errorMsg);
+            return Collections.emptyMap();
         } catch (Exception e) {
             log.warn("Token discovery and seeding failed: {}", e.getMessage());
             return Collections.emptyMap();
@@ -232,6 +238,11 @@ public class AggregatorClient {
             log.warn("Get available tokens returned status: {}", response.getStatusCodeValue());
             return Collections.emptyList();
 
+        } catch (ResourceAccessException e) {
+            // Likely a timeout or connection error
+            String errorMsg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+            log.warn("Aggregator service unavailable or timeout for source {}: {}", sourceId, errorMsg);
+            return Collections.emptyList();
         } catch (Exception e) {
             log.warn("Failed to fetch available tokens from source {}: {}", sourceId, e.getMessage());
             return Collections.emptyList();

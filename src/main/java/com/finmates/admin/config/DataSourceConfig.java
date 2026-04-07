@@ -14,6 +14,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import jakarta.persistence.EntityManagerFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import javax.sql.DataSource;
 import java.util.Map;
@@ -25,7 +26,11 @@ public class DataSourceConfig {
     // ── RestTemplate for HTTP calls (e.g., AggregatorClient) ────────────────────────
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        // Set timeouts to prevent hanging on unresponsive aggregator service
+        factory.setConnectTimeout(5000);      // 5 second connection timeout
+        factory.setReadTimeout(10000);        // 10 second read timeout
+        return new RestTemplate(factory);
     }
 
     // ── EntityManagerFactoryBuilder (manual — HibernateJpaAutoConfiguration excluded) ──
