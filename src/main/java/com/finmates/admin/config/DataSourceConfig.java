@@ -27,9 +27,10 @@ public class DataSourceConfig {
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        // Set timeouts to prevent hanging on unresponsive aggregator service
-        factory.setConnectTimeout(5000);      // 5 second connection timeout
-        factory.setReadTimeout(10000);        // 10 second read timeout
+        // Set generous timeouts for aggregator service
+        // Token discovery returns large payloads (600+ tokens) which takes time to deserialize
+        factory.setConnectTimeout(10000);     // 10 second connection timeout
+        factory.setReadTimeout(60000);        // 60 second read timeout for large token lists
         return new RestTemplate(factory);
     }
 
