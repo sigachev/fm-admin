@@ -38,13 +38,13 @@ public class AggregatorClient {
 
     /**
      * Fetch connection status of all data sources (Hyperliquid, Kraken, Coinbase, OKX, Gemini).
-     * Calls the internal endpoint `/internal/v1/health/sources`.
+     * Calls the public endpoint `/api/v1/prices/sources/status`.
      *
      * @return List of source status; empty list if call fails (graceful degradation)
      */
     public List<SourceStatusDto> getSourceHealth() {
         try {
-            String url = aggregatorUrl + "/internal/v1/health/sources";
+            String url = aggregatorUrl + "/api/v1/prices/sources/status";
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Service-Name", "fm-admin");
 
@@ -72,13 +72,13 @@ public class AggregatorClient {
 
     /**
      * Get available tokens per source from the aggregator.
-     * Calls `/internal/v1/discovery/tokens`.
+     * Calls `/api/v1/discovery/tokens`.
      *
      * @return List of source token availability; empty list if call fails
      */
     public List<SourceTokensDto> getAvailableTokensPerSource() {
         try {
-            String url = aggregatorUrl + "/internal/v1/discovery/tokens";
+            String url = aggregatorUrl + "/api/v1/discovery/tokens";
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Service-Name", "fm-admin");
 
@@ -106,13 +106,13 @@ public class AggregatorClient {
 
     /**
      * Get all unique available tokens across all sources.
-     * Calls `/internal/v1/discovery/tokens/all`.
+     * Calls `/api/v1/discovery/tokens/all`.
      *
      * @return List of all available tokens with source info; empty list if call fails
      */
     public List<AvailableTokenDto> getAllAvailableTokens() {
         try {
-            String url = aggregatorUrl + "/internal/v1/discovery/tokens/all";
+            String url = aggregatorUrl + "/api/v1/discovery/tokens/all";
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Service-Name", "fm-admin");
 
@@ -141,11 +141,11 @@ public class AggregatorClient {
     /**
      * Trigger asset reload in the aggregator.
      * Picks up newly-added tokens from the asset table.
-     * Calls `POST /internal/v1/discovery/reload-assets`.
+     * Calls `POST /api/v1/discovery/reload-assets`.
      */
     public void reloadAssets() {
         try {
-            String url = aggregatorUrl + "/internal/v1/discovery/reload-assets";
+            String url = aggregatorUrl + "/api/v1/discovery/reload-assets";
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Service-Name", "fm-admin");
 
@@ -172,13 +172,13 @@ public class AggregatorClient {
 
     /**
      * Discover and seed all available tokens from exchange REST APIs.
-     * Calls `POST /internal/v1/discovery/seed`.
+     * Calls `POST /api/v1/discovery/seed`.
      * Returns a map of sourceId -> count of newly inserted rows.
      * Note: This operation can be long-running (30+ seconds) depending on exchange API response times.
      */
     public java.util.Map<String, Integer> discoverAndSeedTokens() {
         try {
-            String url = aggregatorUrl + "/internal/v1/discovery/seed";
+            String url = aggregatorUrl + "/api/v1/discovery/seed";
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Service-Name", "fm-admin");
 
@@ -210,7 +210,7 @@ public class AggregatorClient {
 
     /**
      * Get available tokens from a specific source for browsing/importing.
-     * Calls `GET /internal/v1/discovery/available?sourceId={sourceId}&onlyNew={onlyNew}`.
+     * Calls `GET /api/v1/discovery/available?sourceId={sourceId}&onlyNew={onlyNew}`.
      *
      * @param sourceId source ID (kraken, coinbase, okx, gemini, hyperliquid)
      * @param onlyNew if true, only return tokens not yet in our config
@@ -218,7 +218,7 @@ public class AggregatorClient {
      */
     public List<SourceAvailableTokenDto> getAvailableTokens(String sourceId, boolean onlyNew) {
         try {
-            String url = aggregatorUrl + "/internal/v1/discovery/available?sourceId=" + sourceId + "&onlyNew=" + onlyNew;
+            String url = aggregatorUrl + "/api/v1/discovery/available?sourceId=" + sourceId + "&onlyNew=" + onlyNew;
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Service-Name", "fm-admin");
 
