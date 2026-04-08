@@ -7,5 +7,6 @@ public record DiscoveryStatusDto(
     boolean running,
     Instant startedAt,
     Instant completedAt,
-    Map<String, Integer> results
+    Map<String, Integer> results,
+    String error
 ) {}

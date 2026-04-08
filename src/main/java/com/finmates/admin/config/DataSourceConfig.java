@@ -29,8 +29,8 @@ public class DataSourceConfig {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         // Set generous timeouts for aggregator service
         // Token discovery returns large payloads (600+ tokens) which takes time to deserialize
-        factory.setConnectTimeout(10000);     // 10 second connection timeout
-        factory.setReadTimeout(60000);        // 60 second read timeout for large token lists
+        factory.setConnectTimeout(10000);      // 10 second connection timeout
+        factory.setReadTimeout(150000);        // 150 second read timeout — discovery fetches 5 exchanges (30s each) + DB upserts (~1800 rows)
         return new RestTemplate(factory);
     }
 

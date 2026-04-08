@@ -29,6 +29,7 @@ public class AdminSourceTickerService {
     private volatile Instant discoverStartedAt;
     private volatile Instant discoverCompletedAt;
     private volatile Map<String, Integer> lastDiscoverResults = Collections.emptyMap();
+    private volatile String lastDiscoverError = null;
 
     /**
      * Get all ticker configurations grouped by source
@@ -77,6 +78,7 @@ public class AdminSourceTickerService {
         discoverStartedAt = Instant.now();
         discoverCompletedAt = null;
         lastDiscoverResults = Collections.emptyMap();
+        lastDiscoverError = null;
         log.info("Starting async token discovery");
         try {
             lastDiscoverResults = aggregatorClient.discoverAndSeedTokens();
@@ -84,6 +86,7 @@ public class AdminSourceTickerService {
             log.info("Async token discovery completed: {}", lastDiscoverResults);
         } catch (Exception e) {
             log.error("Async token discovery failed: {}", e.getMessage());
+            lastDiscoverError = e.getMessage();
             discoverCompletedAt = Instant.now();
         } finally {
             discovering.set(false);
@@ -98,7 +101,8 @@ public class AdminSourceTickerService {
             discovering.get(),
             discoverStartedAt,
             discoverCompletedAt,
-            lastDiscoverResults
+            lastDiscoverResults,
+            lastDiscoverError
         );
     }
 
