@@ -1,5 +1,6 @@
 package com.finmates.admin.controller;
 
+import com.finmates.admin.dto.DiscoveryStatusDto;
 import com.finmates.admin.dto.SourceAvailableTokenDto;
 import com.finmates.admin.dto.SourceTickerConfigDto;
 import com.finmates.admin.service.AdminSourceTickerService;
@@ -88,11 +89,20 @@ public class AdminTokenSourceController {
     }
 
     @Operation(summary = "Discover and seed tokens from all exchange REST APIs",
-               description = "Inserts newly discovered USD pairs with is_enabled=false. Existing rows unchanged.")
+               description = "Starts discovery in background. Returns 202 immediately. Poll /discover/status for progress.")
     @PostMapping("/discover")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Integer>> discoverTokens() {
-        return ResponseEntity.ok(service.discoverTokens());
+    public ResponseEntity<Void> discoverTokens() {
+        service.discoverTokensAsync();
+        return ResponseEntity.accepted().build();
+    }
+
+    @Operation(summary = "Get discovery job status",
+               description = "Returns whether discovery is running and results once complete.")
+    @GetMapping("/discover/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DiscoveryStatusDto> getDiscoveryStatus() {
+        return ResponseEntity.ok(service.getDiscoveryStatus());
     }
 
     @Operation(summary = "Get available tokens from a specific source",
