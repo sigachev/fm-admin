@@ -84,6 +84,13 @@ public class AdminTokenService {
         AdminAsset saved = assetRepository.save(asset);
         log.info("Created token: symbol={}, name={}", saved.getSymbol(), saved.getName());
 
+        // Reload aggregator asset list so the new token starts streaming immediately
+        try {
+            aggregatorClient.reloadAssets();
+        } catch (Exception e) {
+            log.warn("Created token {} but failed to reload aggregator assets: {}", saved.getSymbol(), e.getMessage());
+        }
+
         return toDto(saved);
     }
 
@@ -114,10 +121,18 @@ public class AdminTokenService {
         AdminAsset asset = assetRepository.findBySymbolIgnoreCase(symbol)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Token not found: " + symbol));
 
-        asset.setIsActive(!Boolean.TRUE.equals(asset.getIsActive()));
+        boolean newActive = !Boolean.TRUE.equals(asset.getIsActive());
+        asset.setIsActive(newActive);
         AdminAsset updated = assetRepository.save(asset);
 
         log.info("Toggled token status: symbol={}, isActive={}", symbol, updated.getIsActive());
+
+        // Reload aggregator so status change takes effect immediately
+        try {
+            aggregatorClient.reloadAssets();
+        } catch (Exception e) {
+            log.warn("Toggled token {} but failed to reload aggregator assets: {}", symbol, e.getMessage());
+        }
 
         return toDto(updated);
     }
