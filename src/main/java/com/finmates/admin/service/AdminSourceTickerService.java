@@ -119,7 +119,8 @@ public class AdminSourceTickerService {
                 config.getExchangeSymbol(),
                 config.getRestSymbol(),
                 !config.isEnabled(),
-                config.isEnabled()
+                config.isEnabled(),
+                false  // isAsset: unknown from ticker config alone; aggregator sets this for browse flow
             ))
             .collect(Collectors.toList());
     }
