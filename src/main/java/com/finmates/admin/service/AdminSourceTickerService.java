@@ -64,10 +64,21 @@ public class AdminSourceTickerService {
     }
 
     /**
-     * Get available tokens from a specific source for browsing/importing
+     * Get available tokens from a specific source for browsing/importing.
+     * Reads from source_ticker_config DB (populated by discoverTokens()).
+     * isNew=true means the token has not been enabled yet (is_enabled=false).
      */
     public List<SourceAvailableTokenDto> getAvailableTokens(String sourceId, boolean onlyNew) {
-        return aggregatorClient.getAvailableTokens(sourceId, onlyNew);
+        return repo.findBySourceId(sourceId).stream()
+            .filter(config -> !onlyNew || !config.isEnabled())
+            .map(config -> new SourceAvailableTokenDto(
+                config.getSymbol(),
+                config.getExchangeSymbol(),
+                config.getRestSymbol(),
+                !config.isEnabled(),
+                config.isEnabled()
+            ))
+            .collect(Collectors.toList());
     }
 
     private SourceTickerConfigDto toDto(AggregatorSourceTickerConfig entity) {

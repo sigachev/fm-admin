@@ -1,5 +1,6 @@
 package com.finmates.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -14,6 +15,8 @@ public class SourceAvailableTokenDto {
     private final String symbol;              // canonical: "BTC"
     private final String exchangeSymbol;      // exchange format: "BTC/USD", "BTC-USD", etc.
     private final String restSymbol;          // nullable; Kraken only
-    private final boolean isNew;              // true if not in source_ticker_config yet
+    @JsonProperty("isNew")
+    private final boolean isNew;              // true if not yet enabled in source_ticker_config
+    @JsonProperty("isCurrentlyEnabled")
     private final boolean isCurrentlyEnabled; // true if already in DB and is_enabled=true
 }
