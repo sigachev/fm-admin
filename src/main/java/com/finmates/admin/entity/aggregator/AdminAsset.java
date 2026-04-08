@@ -41,6 +41,15 @@ public class AdminAsset {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Column(name = "website", length = 255)
+    private String website;
+
+    @Column(name = "twitter", length = 100)
+    private String twitter;
+
+    @Column(name = "whitepaper", length = 500)
+    private String whitepaper;
+
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
 

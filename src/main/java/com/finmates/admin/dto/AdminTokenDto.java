@@ -22,6 +22,9 @@ public class AdminTokenDto {
     private Integer rank;
     private String logoUrl;
     private String description;
+    private String website;
+    private String twitter;
+    private String whitepaper;
     private Instant createdAt;
     private Instant updatedAt;
 }

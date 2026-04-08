@@ -19,4 +19,6 @@ public class SourceAvailableTokenDto {
     private final boolean isNew;              // true if not yet enabled in source_ticker_config
     @JsonProperty("isCurrentlyEnabled")
     private final boolean isCurrentlyEnabled; // true if already in DB and is_enabled=true
+    @JsonProperty("isAsset")
+    private final boolean isAsset;            // true if symbol exists in the asset table (visible on Markets)
 }

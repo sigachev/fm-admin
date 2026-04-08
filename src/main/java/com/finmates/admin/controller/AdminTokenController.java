@@ -132,4 +132,15 @@ public class AdminTokenController {
         }
         return ResponseEntity.ok(java.util.Map.of("added", added, "requested", symbols.size()));
     }
+
+    /**
+     * Trigger a metadata fetch from OKX for all tracked assets.
+     * Updates name and logoUrl in the asset table for recognised symbols.
+     * Returns { updated: N, notFound: M }.
+     */
+    @PostMapping("/metadata/fetch")
+    public ResponseEntity<java.util.Map<String, Integer>> fetchMetadataFromOkx() {
+        java.util.Map<String, Integer> result = tokenService.fetchMetadataFromOkx();
+        return ResponseEntity.ok(result);
+    }
 }

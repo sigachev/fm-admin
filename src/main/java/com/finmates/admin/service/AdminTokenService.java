@@ -107,6 +107,21 @@ public class AdminTokenService {
         if (request.getRank() != null) {
             asset.setRank(request.getRank());
         }
+        if (request.getLogoUrl() != null) {
+            asset.setLogoUrl(request.getLogoUrl().isBlank() ? null : request.getLogoUrl());
+        }
+        if (request.getDescription() != null) {
+            asset.setDescription(request.getDescription().isBlank() ? null : request.getDescription());
+        }
+        if (request.getWebsite() != null) {
+            asset.setWebsite(request.getWebsite().isBlank() ? null : request.getWebsite());
+        }
+        if (request.getTwitter() != null) {
+            asset.setTwitter(request.getTwitter().isBlank() ? null : request.getTwitter());
+        }
+        if (request.getWhitepaper() != null) {
+            asset.setWhitepaper(request.getWhitepaper().isBlank() ? null : request.getWhitepaper());
+        }
 
         AdminAsset updated = assetRepository.save(asset);
         log.info("Updated token: symbol={}", symbol);
@@ -156,6 +171,14 @@ public class AdminTokenService {
     }
 
     /**
+     * Trigger OKX metadata fetch via the aggregator service.
+     * Returns { updated: N, notFound: M }.
+     */
+    public java.util.Map<String, Integer> fetchMetadataFromOkx() {
+        return aggregatorClient.fetchMetadataFromOkx();
+    }
+
+    /**
      * Get total token count.
      */
     public long getTotalTokenCount() {
@@ -178,7 +201,13 @@ public class AdminTokenService {
                 .name(asset.getName())
                 .isActive(Boolean.TRUE.equals(asset.getIsActive()))
                 .rank(asset.getRank())
+                .logoUrl(asset.getLogoUrl())
+                .description(asset.getDescription())
+                .website(asset.getWebsite())
+                .twitter(asset.getTwitter())
+                .whitepaper(asset.getWhitepaper())
                 .createdAt(asset.getCreatedAt())
+                .updatedAt(asset.getUpdatedAt())
                 .build();
     }
 }

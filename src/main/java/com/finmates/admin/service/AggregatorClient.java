@@ -209,6 +209,41 @@ public class AggregatorClient {
     }
 
     /**
+     * Trigger OKX metadata fetch on the aggregator.
+     * Aggregator fetches name + logoUrl for all assets from OKX public currencies API,
+     * then persists them to the asset table.
+     *
+     * @return map of { "updated": N, "notFound": M } or empty map on failure
+     */
+    public java.util.Map<String, Integer> fetchMetadataFromOkx() {
+        try {
+            String url = aggregatorUrl + "/internal/v1/assets/metadata/fetch";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Service-Name", "fm-admin");
+
+            HttpEntity<String> request = new HttpEntity<>(headers);
+
+            ResponseEntity<java.util.Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    request,
+                    java.util.Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("OKX metadata fetch completed: {}", response.getBody());
+                return response.getBody();
+            }
+            log.warn("Metadata fetch returned status: {}", response.getStatusCodeValue());
+            return Collections.emptyMap();
+
+        } catch (Exception e) {
+            log.warn("Failed to fetch metadata from OKX via aggregator: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
      * Get available tokens from a specific source for browsing/importing.
      * Calls `GET /api/v1/discovery/available?sourceId={sourceId}&onlyNew={onlyNew}`.
      *

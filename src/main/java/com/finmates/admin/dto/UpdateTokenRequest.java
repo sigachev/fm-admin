@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Request body for updating a token's metadata (name, rank).
+ * Request body for updating a token's metadata.
  */
 @Data
 @NoArgsConstructor
@@ -13,4 +13,9 @@ import lombok.NoArgsConstructor;
 public class UpdateTokenRequest {
     private String name;
     private Integer rank;
+    private String logoUrl;
+    private String description;
+    private String website;
+    private String twitter;
+    private String whitepaper;
 }
