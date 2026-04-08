@@ -88,6 +88,33 @@ public class TokenDiscoveryService {
     }
 
     /**
+     * Add multiple tokens to the asset table in one call.
+     * Skips symbols that already exist. Returns count of newly inserted tokens.
+     */
+    public int addTokensBulk(List<String> symbols) {
+        Set<String> existing = assetRepository.findAll()
+            .stream()
+            .map(AdminAsset::getSymbol)
+            .collect(Collectors.toSet());
+
+        int added = 0;
+        for (String symbol : symbols) {
+            String upper = symbol.toUpperCase();
+            if (existing.contains(upper)) continue;
+            AdminAsset asset = new AdminAsset();
+            asset.setSymbol(upper);
+            asset.setName(upper);
+            asset.setIsActive(true);
+            asset.setCreatedAt(Instant.now());
+            assetRepository.save(asset);
+            existing.add(upper);
+            added++;
+        }
+        log.info("Bulk added {} new tokens to asset table", added);
+        return added;
+    }
+
+    /**
      * Reload assets in the aggregator to pick up newly-added tokens.
      * Should be called after adding tokens via addToken().
      */

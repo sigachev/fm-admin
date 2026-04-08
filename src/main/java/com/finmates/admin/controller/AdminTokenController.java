@@ -116,4 +116,20 @@ public class AdminTokenController {
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(tokenService.getToken(symbol));
     }
+
+    /**
+     * Add multiple tokens to the asset table in one call.
+     * Skips tokens already in the table. Reloads aggregator after.
+     * Body: { "symbols": ["AAVE", "LINK", ...] }
+     */
+    @PostMapping("/discovery/add/bulk")
+    public ResponseEntity<java.util.Map<String, Object>> addTokensBulk(
+            @RequestBody java.util.Map<String, List<String>> body) {
+        List<String> symbols = body.getOrDefault("symbols", List.of());
+        int added = discoveryService.addTokensBulk(symbols);
+        if (added > 0) {
+            discoveryService.reloadAggregatorAssets();
+        }
+        return ResponseEntity.ok(java.util.Map.of("added", added, "requested", symbols.size()));
+    }
 }
