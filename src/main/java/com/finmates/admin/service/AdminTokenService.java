@@ -6,6 +6,7 @@ import com.finmates.admin.dto.SourceStatusDto;
 import com.finmates.admin.dto.UpdateTokenRequest;
 import com.finmates.admin.entity.aggregator.AdminAsset;
 import com.finmates.admin.repository.aggregator.AdminAssetRepository;
+import com.finmates.admin.repository.aggregator.AggregatorSourceTickerConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,6 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Service for managing crypto tokens/assets in the aggregator DB.
@@ -29,17 +32,35 @@ import java.util.List;
 public class AdminTokenService {
 
     private final AdminAssetRepository assetRepository;
+    private final AggregatorSourceTickerConfigRepository sourceTickerRepo;
     private final AggregatorClient aggregatorClient;
 
     /**
-     * List all tokens with optional search.
+     * List all tokens with optional search and source filter.
+     * When sourceId is provided, only returns tokens that have an enabled ticker for that source.
      */
-    public Page<AdminTokenDto> listTokens(String search, Pageable pageable) {
+    public Page<AdminTokenDto> listTokens(String search, String sourceId, Pageable pageable) {
         Page<AdminAsset> assets;
 
-        if (search != null && !search.isBlank()) {
-            search = search.trim();
-            assets = assetRepository.findBySymbolContainingIgnoreCaseOrNameContainingIgnoreCase(search, search, pageable);
+        if (sourceId != null && !sourceId.isBlank()) {
+            // Collect enabled symbols for this source (normalised to uppercase to match asset table)
+            Set<String> symbols = sourceTickerRepo.findEnabledBySourceId(sourceId)
+                    .stream()
+                    .map(t -> t.getSymbol().toUpperCase())
+                    .collect(Collectors.toSet());
+
+            if (symbols.isEmpty()) {
+                return Page.empty(pageable);
+            }
+
+            if (search != null && !search.isBlank()) {
+                assets = assetRepository.findBySymbolInAndSearchTerm(symbols, search.trim(), pageable);
+            } else {
+                assets = assetRepository.findBySymbolIn(symbols, pageable);
+            }
+        } else if (search != null && !search.isBlank()) {
+            String s = search.trim();
+            assets = assetRepository.findBySymbolContainingIgnoreCaseOrNameContainingIgnoreCase(s, s, pageable);
         } else {
             assets = assetRepository.findAll(pageable);
         }

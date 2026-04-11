@@ -32,13 +32,15 @@ public class AdminTokenController {
     private final TokenDiscoveryService discoveryService;
 
     /**
-     * List all tokens with optional search.
+     * List all tokens with optional search and source filter.
+     * sourceId filters to tokens that have an enabled ticker for that exchange.
      */
     @GetMapping
     public Page<AdminTokenDto> listTokens(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sourceId,
             @PageableDefault(size = 20) Pageable pageable) {
-        return tokenService.listTokens(search, pageable);
+        return tokenService.listTokens(search, sourceId, pageable);
     }
 
     /**
