@@ -72,14 +72,15 @@ public class TokenDiscoveryService {
      * Optionally provide name and rank, otherwise they're set to defaults.
      */
     public AdminAsset addToken(String symbol, String name, Integer rank) {
-        // Check if already exists
-        if (assetRepository.findBySymbolIgnoreCase(symbol).isPresent()) {
-            throw new IllegalArgumentException("Token " + symbol + " already exists");
+        String upper = symbol.toUpperCase();
+        // Check if already exists (case-insensitive)
+        if (assetRepository.findBySymbolIgnoreCase(upper).isPresent()) {
+            throw new IllegalArgumentException("Token " + upper + " already exists");
         }
 
         AdminAsset asset = new AdminAsset();
-        asset.setSymbol(symbol);
-        asset.setName(name != null ? name : symbol);
+        asset.setSymbol(upper);
+        asset.setName(name != null ? name : upper);
         asset.setIsActive(true);
         asset.setRank(rank);
         asset.setCreatedAt(Instant.now());
@@ -92,9 +93,10 @@ public class TokenDiscoveryService {
      * Skips symbols that already exist. Returns count of newly inserted tokens.
      */
     public int addTokensBulk(List<String> symbols) {
+        // Normalise to uppercase for case-insensitive deduplication
         Set<String> existing = assetRepository.findAll()
             .stream()
-            .map(AdminAsset::getSymbol)
+            .map(a -> a.getSymbol().toUpperCase())
             .collect(Collectors.toSet());
 
         int added = 0;

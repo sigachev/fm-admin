@@ -48,4 +48,14 @@ public interface AdminAssetRepository extends JpaRepository<AdminAsset, Long> {
             @Param("search") String search,
             Pageable pageable
     );
+
+    /**
+     * Find all assets that have a case-insensitive duplicate symbol (UPPER(symbol) appears more than once).
+     * Returns all rows that are part of a duplicate group, ordered by UPPER(symbol) then id.
+     */
+    @Query(value = "SELECT * FROM asset WHERE UPPER(symbol) IN " +
+                   "(SELECT UPPER(symbol) FROM asset GROUP BY UPPER(symbol) HAVING COUNT(*) > 1) " +
+                   "ORDER BY UPPER(symbol), id",
+           nativeQuery = true)
+    List<AdminAsset> findDuplicatesBySymbol();
 }
