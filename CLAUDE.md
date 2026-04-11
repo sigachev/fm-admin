@@ -144,25 +144,29 @@ DELETE /api/admin/news/{id}              delete article (deletes from crypto_dat
 
 ### Token & Asset Management
 ```
-GET    /api/admin/tokens                  paginated token list (?search=)
+GET    /api/admin/tokens                  paginated token list (?search= &sourceId=)
 GET    /api/admin/tokens/{symbol}         token detail with price/volume data
 POST   /api/admin/tokens                  create new token { "symbol", "name", "rank" }
 PUT    /api/admin/tokens/{symbol}         update token metadata
-DELETE /api/admin/tokens/{symbol}         deactivate token
+PATCH  /api/admin/tokens/{symbol}/active  toggle active status
+DELETE /api/admin/tokens/{symbol}         delete token
+POST   /api/admin/tokens/metadata/fetch   fetch metadata from CoinPaprika for all tokens
 
 GET    /api/admin/tokens/discovery/sources  available source data providers
 GET    /api/admin/tokens/discovery/available  tokens available on connected sources
-POST   /api/admin/tokens/discovery/add    add discovered token to platform
+POST   /api/admin/tokens/discovery/add    add discovered token to platform (?symbol= &name= &rank=)
+POST   /api/admin/tokens/discovery/add/bulk  bulk add tokens { "symbols": [...] }
 ```
 
 ### Token Source & Ticker Configuration
 ```
-GET    /api/admin/tokens/sources/health   source connection status + priority
-GET    /api/admin/tokens/sources          ticker mappings for all sources
-GET    /api/admin/tokens/sources/{sourceId}  mappings for specific source
-POST   /api/admin/tokens/sources/discover   discover new tickers from connected source
-PATCH  /api/admin/tokens/sources/{sourceId}/{symbol}  update ticker mapping
-GET    /api/admin/tokens/sources/available  available tokens from discovery
+GET    /api/admin/tokens/sources/health      source connection status + priority
+GET    /api/admin/tokens/sources             ticker mappings for all sources, grouped by sourceId
+GET    /api/admin/tokens/sources/{sourceId}  ticker configs for one source (SourceTickerConfig[])
+POST   /api/admin/tokens/sources/discover    trigger async token discovery (returns 202)
+GET    /api/admin/tokens/sources/discover/status  discovery job status (poll at 2s while running)
+PATCH  /api/admin/tokens/sources/{sourceId}/{symbol}/enabled  toggle ticker enabled { "enabled": bool }
+GET    /api/admin/tokens/sources/available   available tokens from a source (?sourceId= &onlyNew=)
 ```
 
 ### Platform Statistics
@@ -245,6 +249,14 @@ keycloak.admin.password=${KEYCLOAK_ADMIN_PASSWORD}
 Dev profile uses self-signed cert at `auth.finmates.com` — `KeycloakAdminProvider` initializes a trust-all `resteasyClient()` to bypass PKIX validation.
 
 ## Known Gotchas
+
+- **`source_ticker_config.symbol` is mixed-case** — Hyperliquid stores perpetual k-tokens as lowercase-k (`kSHIB`, `kDOGS`, `kFLOKI`). The `asset` table always stores symbols uppercase. When toggling a ticker, always use case-insensitive lookup: `findBySourceIdAndSymbolIgnoreCase`. When joining ticker symbols to the asset table (e.g., for source filter), call `.toUpperCase()` on the ticker symbol before matching. **Never** use `symbol.toUpperCase()` before the ticker lookup itself — it converts `kSHIB` → `KSHIB` which won't find the DB row.
+
+- **Derived Spring Data methods with `boolean` + `@Column(name="is_enabled")`** — `findByEnabledTrue()` on a field declared as `boolean enabled` with `@Column(name = "is_enabled")` can behave unexpectedly because Lombok generates `isEnabled()` as the getter. Always use an explicit `@Query("SELECT t FROM ... WHERE t.enabled = true")` for filtering on this field (see `findEnabledBySourceId` in `AggregatorSourceTickerConfigRepository`).
+
+- **`GET /api/admin/tokens` now accepts `?sourceId=`** — server-side filter returning only assets whose symbol matches an enabled ticker for that source. The filter fetches enabled symbols via `findEnabledBySourceId(sourceId)`, normalises to uppercase, then queries `findBySymbolIn(symbols, pageable)`. Previously this was client-side only (filtered just the current page of 20 — incorrect totals).
+
+- **`getAvailableTokens()` `isAsset` was hardcoded `false`** — Fixed: now fetches all asset symbols from the `asset` table and checks membership. Requires no backend call — reads from the same `aggregatorDataSource`. Visible effect: Browse page "In Platform" stat now shows the correct count instead of always 0.
 
 - **HikariCP requires `jdbc-url`, not `url`** — when using custom `@ConfigurationProperties` prefix (e.g. `datasource.main.*`), HikariCP does not perform Spring Boot's auto-mapping of `url` → `jdbcUrl`. Always use `jdbc-url` in property files. The k8s profile has a bug: uses `url` instead of `jdbc-url` — fix before deploying to Kubernetes, or service will fail with `IllegalArgumentException: jdbcUrl is required with driverClassName`.
 
