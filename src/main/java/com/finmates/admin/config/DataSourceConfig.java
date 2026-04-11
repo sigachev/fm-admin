@@ -18,10 +18,19 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import javax.sql.DataSource;
 import java.util.Map;
+import java.util.logging.Logger;
+import jakarta.annotation.PreDestroy;
 
 @Configuration
 @EnableTransactionManagement
 public class DataSourceConfig {
+
+    private static final Logger logger = Logger.getLogger(DataSourceConfig.class.getName());
+
+    // ── DataSource references for graceful shutdown ────────────────────────────────
+    private DataSource mainDataSourceRef;
+    private DataSource cryptoDataSourceRef;
+    private DataSource aggregatorDataSourceRef;
 
     // ── RestTemplate for HTTP calls (e.g., AggregatorClient) ────────────────────────
     @Bean
@@ -56,7 +65,10 @@ public class DataSourceConfig {
     @Bean("mainDataSource")
     @ConfigurationProperties(prefix = "datasource.main")
     public DataSource mainDataSource() {
-        return DataSourceBuilder.create().build();
+        DataSource ds = DataSourceBuilder.create().build();
+        mainDataSourceRef = ds;
+        logger.info("[MainDataSource] HikariCP pool initialized");
+        return ds;
     }
 
     @Primary
@@ -83,7 +95,10 @@ public class DataSourceConfig {
     @Bean("cryptoDataSource")
     @ConfigurationProperties(prefix = "datasource.crypto")
     public DataSource cryptoDataSource() {
-        return DataSourceBuilder.create().build();
+        DataSource ds = DataSourceBuilder.create().build();
+        cryptoDataSourceRef = ds;
+        logger.info("[CryptoDataSource] HikariCP pool initialized");
+        return ds;
     }
 
     @Bean("cryptoEntityManagerFactory")
@@ -108,7 +123,10 @@ public class DataSourceConfig {
     @Bean("aggregatorDataSource")
     @ConfigurationProperties(prefix = "datasource.aggregator")
     public DataSource aggregatorDataSource() {
-        return DataSourceBuilder.create().build();
+        DataSource ds = DataSourceBuilder.create().build();
+        aggregatorDataSourceRef = ds;
+        logger.info("[AggregatorDataSource] HikariCP pool initialized");
+        return ds;
     }
 
     @Bean("aggregatorEntityManagerFactory")
@@ -126,5 +144,41 @@ public class DataSourceConfig {
     public PlatformTransactionManager aggregatorTransactionManager(
             @Qualifier("aggregatorEntityManagerFactory") EntityManagerFactory emf) {
         return new JpaTransactionManager(emf);
+    }
+
+    // ── Graceful shutdown: close all datasource pools ────────────────────────────────
+    @PreDestroy
+    public void closeDataSources() {
+        logger.info("[DataSourceConfig] Graceful shutdown: closing all datasource pools");
+
+        // Close main datasource
+        if (mainDataSourceRef instanceof com.zaxxer.hikari.HikariDataSource) {
+            try {
+                ((com.zaxxer.hikari.HikariDataSource) mainDataSourceRef).close();
+                logger.info("[MainDataSource] HikariCP pool closed successfully");
+            } catch (Exception e) {
+                logger.warning("[MainDataSource] Error closing pool: " + e.getMessage());
+            }
+        }
+
+        // Close crypto datasource
+        if (cryptoDataSourceRef instanceof com.zaxxer.hikari.HikariDataSource) {
+            try {
+                ((com.zaxxer.hikari.HikariDataSource) cryptoDataSourceRef).close();
+                logger.info("[CryptoDataSource] HikariCP pool closed successfully");
+            } catch (Exception e) {
+                logger.warning("[CryptoDataSource] Error closing pool: " + e.getMessage());
+            }
+        }
+
+        // Close aggregator datasource
+        if (aggregatorDataSourceRef instanceof com.zaxxer.hikari.HikariDataSource) {
+            try {
+                ((com.zaxxer.hikari.HikariDataSource) aggregatorDataSourceRef).close();
+                logger.info("[AggregatorDataSource] HikariCP pool closed successfully");
+            } catch (Exception e) {
+                logger.warning("[AggregatorDataSource] Error closing pool: " + e.getMessage());
+            }
+        }
     }
 }
