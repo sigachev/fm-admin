@@ -56,7 +56,7 @@ public class AdminSourceTickerService {
      * Toggle a ticker's enabled status for a source
      */
     public SourceTickerConfigDto toggleTicker(String sourceId, String symbol, boolean enabled) {
-        return repo.findBySourceIdAndSymbol(sourceId, symbol.toUpperCase())
+        return repo.findBySourceIdAndSymbolIgnoreCase(sourceId, symbol)
             .map(config -> {
                 config.setEnabled(enabled);
                 config.setUpdatedAt(Instant.now());
