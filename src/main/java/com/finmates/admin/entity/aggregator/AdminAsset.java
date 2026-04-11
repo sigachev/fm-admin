@@ -8,7 +8,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 /**
- * Read/Write mapping of the 'asset' table in the crypto_aggregator DB.
+ * Read/Write mapping of the 'asset' table in the crypto_data DB.
  * Tracks crypto tokens and their metadata.
  */
 @Entity

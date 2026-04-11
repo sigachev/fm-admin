@@ -103,7 +103,7 @@ public class DataSourceConfig {
         return new JpaTransactionManager(emf);
     }
 
-    // ── Aggregator datasource (crypto_aggregator DB — assets, prices) ─────────────────
+    // ── Aggregator datasource (crypto_data DB — assets, prices) ─────────────────
 
     @Bean("aggregatorDataSource")
     @ConfigurationProperties(prefix = "datasource.aggregator")

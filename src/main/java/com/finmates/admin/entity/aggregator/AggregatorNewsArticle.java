@@ -8,7 +8,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 /**
- * Maps to news_article table in the crypto_aggregator DB.
+ * Maps to news_article table in the crypto_data DB.
  * Used to mirror admin-created news so it appears in the public news feed.
  */
 @Entity

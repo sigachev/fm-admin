@@ -15,7 +15,7 @@ Admin-only backend for managing users, portfolios, trades, news, and token/asset
 **Data ownership model:**
 - `main` DB — read-only on `users`, read-write on `admin_news` (managed via V11 migration in finmates-main)
 - `crypto` DB — read-only on `portfolios`, `trades`, `positions` (with admin delete overrides)
-- `crypto_aggregator` DB — read-write on `asset`, `news_article`, `news_source`; admin news is **mirrored** here via `AdminNewsService` for public display (best-effort, non-blocking)
+- `crypto_data` DB — read-write on `asset`, `news_article`, `news_source`; admin news is **mirrored** here via `AdminNewsService` for public display (best-effort, non-blocking)
 
 **Do NOT modify user, portfolio, or trade schemas directly.** All schema changes in those databases must be made in their respective services (`finmates-main`, `finmates-crypto`, `fm-crypto-aggregator`).
 
@@ -29,7 +29,7 @@ Admin-only backend for managing users, portfolios, trades, news, and token/asset
 5. **Controller** — add `@RestController` to `Admin{Feature}Controller`; all endpoints require `@PreAuthorize("hasRole('ADMIN')")` + `@RequestMapping("/api/admin/..."); pass DTO to response
 
 ### Adding a New Token/Asset Feature
-- Token data lives in `crypto_aggregator.asset` table
+- Token data lives in `crypto_data.asset` table
 - If syncing with external sources, use `AggregatorClient` to call `fm-crypto-aggregator` endpoints
 - Internal calls use `X-Service-Name: fm-admin` header (see `AggregatorClient.java`)
 - Always handle source unavailability gracefully — external services may be down
@@ -73,7 +73,7 @@ Connects to THREE databases simultaneously with mixed ownership:
 |------------|-----|-----------|-------------|----------|
 | `mainDataSource` (@Primary) | `main` (finmates-main) | Read-only users; Read-write news | `users`, `admin_news` | `ddl-auto=none` |
 | `cryptoDataSource` | `crypto` (finmates-crypto) | Read-only (except admin deletes) | `portfolios`, `portfolio_trades`, `portfolio_positions` | `ddl-auto=none` |
-| `aggregatorDataSource` | `crypto_aggregator` (fm-crypto-aggregator) | Read-write (owns asset + news tables) | `asset`, `news_article`, `news_source`, `asset_price_*` | `ddl-auto=none` |
+| `aggregatorDataSource` | `crypto_data` (fm-crypto-aggregator) | Read-write (owns asset + news tables) | `asset`, `news_article`, `news_source`, `asset_price_*` | `ddl-auto=none` |
 
 **Flyway is DISABLED** — this service never creates migration files or runs schema initialization automatically. The `admin_news` table in `main` DB was created by a direct SQL execute (V11__admin_news.sql from finmates-main). When deploying to a new environment, ensure all three databases exist and the `admin_news` table in `main` is created via:
 ```bash
@@ -96,7 +96,7 @@ All JPA infrastructure is configured manually across three config classes:
 
 **Aggregator Datasource** (`AggregatorRepositoryConfig.java`):
 - `aggregatorDataSource` / `aggregatorEntityManagerFactory` / `aggregatorTransactionManager`
-- Entity scan package: `entity.aggregator` → crypto_aggregator DB
+- Entity scan package: `entity.aggregator` → crypto_data DB
 - Repository scan package: `repository.aggregator`
 - Manages `AdminAsset`, `AggregatorNewsSource`, `AggregatorNewsArticle`, `AggregatorSourceTickerConfig`
 
@@ -137,9 +137,9 @@ GET    /api/admin/positions               all positions (?symbol= &userId=)
 ### News Management (mirrored to public feed)
 ```
 GET    /api/admin/news                    news articles (newest first)
-POST   /api/admin/news                    create article (mirrors to crypto_aggregator)
-PUT    /api/admin/news/{id}               update article (mirrors to crypto_aggregator)
-DELETE /api/admin/news/{id}              delete article (deletes from crypto_aggregator)
+POST   /api/admin/news                    create article (mirrors to crypto_data)
+PUT    /api/admin/news/{id}               update article (mirrors to crypto_data)
+DELETE /api/admin/news/{id}              delete article (deletes from crypto_data)
 ```
 
 ### Token & Asset Management
@@ -173,7 +173,7 @@ GET    /api/admin/stats                   platform-wide counts (users, portfolio
 ## Token & Asset Management
 
 ### Token Lifecycle (Aggregator DB)
-Tokens are stored in `crypto_aggregator.asset` table and managed via `/api/admin/tokens/`:
+Tokens are stored in `crypto_data.asset` table and managed via `/api/admin/tokens/`:
 - **Create** — `POST /api/admin/tokens` adds a new `AdminAsset` with `isActive=true`
 - **Update** — `PUT /api/admin/tokens/{symbol}` modifies metadata (name, rank, etc.)
 - **Delete** — `DELETE /api/admin/tokens/{symbol}` sets `isActive=false` (soft delete)
@@ -197,7 +197,7 @@ Tracks how each data source names/maps tokens via `AggregatorSourceTickerConfig`
 
 When an admin creates/updates/deletes news via `/api/admin/news`:
 1. Changes persist to `main.admin_news` (finmates-main DB)
-2. `AdminNewsService` **mirrors** the changes to `crypto_aggregator.news_article` (best-effort, non-blocking)
+2. `AdminNewsService` **mirrors** the changes to `crypto_data.news_article` (best-effort, non-blocking)
    - Uses `AggregatorNewsSourceRepository` + `AggregatorNewsArticleRepository` (JPA)
    - "FinMates" source (tier=0) seeded by V5 migration in fm-crypto-aggregator
    - Admin article ID stored as `external_id` for deduplication
@@ -205,7 +205,7 @@ When an admin creates/updates/deletes news via `/api/admin/news`:
 3. Frontend fetches from `/api/news` (fm-crypto-data), which reads both RSS + mirrored admin articles
 4. Detail page shows `content` field + link to original URL
 
-**Important:** Do NOT modify `news_article` or `news_source` tables directly in `crypto_aggregator` DB. All admin news goes through this mirroring flow.
+**Important:** Do NOT modify `news_article` or `news_source` tables directly in `crypto_data` DB. All admin news goes through this mirroring flow.
 
 ## Entity Notes
 
@@ -283,7 +283,7 @@ service/
   AdminTokenService    — Token CRUD and discovery
   AdminSourceTickerService  — Source ticker mapping management
   TokenDiscoveryService     — Discover tokens from connected sources
-  AdminNewsService     — News CRUD + mirroring to crypto_aggregator DB
+  AdminNewsService     — News CRUD + mirroring to crypto_data DB
   AggregatorClient     — Internal REST client for aggregator service health checks
 
 dto/
