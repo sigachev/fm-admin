@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
@@ -52,6 +53,24 @@ public class AdminAsset {
 
     @Column(name = "whitepaper", length = 500)
     private String whitepaper;
+
+    @Column(name = "market_cap")
+    private BigDecimal marketCap;
+
+    @Column(name = "volume_24h")
+    private BigDecimal volume24h;
+
+    @Column(name = "circulating_supply")
+    private BigDecimal circulatingSupply;
+
+    @Column(name = "category", length = 100)
+    private String category;
+
+    @Column(name = "coinpaprika_id", length = 100)
+    private String coinpaprikaId;
+
+    @Column(name = "last_metadata_update")
+    private Instant lastMetadataUpdate;
 
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
