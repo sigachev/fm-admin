@@ -145,4 +145,26 @@ public class AdminTokenController {
         java.util.Map<String, Integer> result = tokenService.fetchMetadataFromOkx();
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * Detect case-insensitive duplicate symbols in the asset table.
+     * Returns a map of UPPER(symbol) → list of duplicate rows.
+     * Safe to call at any time — read-only.
+     */
+    @GetMapping("/duplicates")
+    public java.util.Map<String, java.util.List<AdminTokenDto>> getDuplicates() {
+        return tokenService.findDuplicates();
+    }
+
+    /**
+     * Remove case-insensitive duplicate assets.
+     * Keeps the row with the lowest ID per symbol group (oldest = canonical).
+     * Updates source_ticker_config references before deleting.
+     * Returns { removed: N }.
+     */
+    @DeleteMapping("/duplicates")
+    public ResponseEntity<java.util.Map<String, Integer>> removeDuplicates() {
+        int removed = tokenService.removeDuplicates();
+        return ResponseEntity.ok(java.util.Map.of("removed", removed));
+    }
 }

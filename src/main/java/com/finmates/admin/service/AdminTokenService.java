@@ -17,7 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -197,6 +200,57 @@ public class AdminTokenService {
      */
     public java.util.Map<String, Integer> fetchMetadataFromOkx() {
         return aggregatorClient.fetchMetadataFromOkx();
+    }
+
+    /**
+     * Find case-insensitive duplicate symbols in the asset table.
+     * Returns a map of canonical (uppercase) symbol → list of duplicate rows.
+     */
+    public Map<String, List<AdminTokenDto>> findDuplicates() {
+        List<AdminAsset> dupes = assetRepository.findDuplicatesBySymbol();
+        Map<String, List<AdminTokenDto>> result = new LinkedHashMap<>();
+        for (AdminAsset a : dupes) {
+            result.computeIfAbsent(a.getSymbol().toUpperCase(), k -> new ArrayList<>()).add(toDto(a));
+        }
+        return result;
+    }
+
+    /**
+     * Safely remove case-insensitive duplicate assets.
+     * Strategy: within each duplicate group, keep the row with the lowest ID (oldest/original).
+     * Before deleting duplicates, update any source_ticker_config rows that reference the
+     * deleted symbol to use the kept symbol's casing.
+     * Returns the number of rows deleted.
+     */
+    public int removeDuplicates() {
+        List<AdminAsset> dupes = assetRepository.findDuplicatesBySymbol();
+        if (dupes.isEmpty()) return 0;
+
+        // Group by uppercase symbol; rows are already ordered by UPPER(symbol), id (lowest first)
+        Map<String, List<AdminAsset>> grouped = new LinkedHashMap<>();
+        for (AdminAsset a : dupes) {
+            grouped.computeIfAbsent(a.getSymbol().toUpperCase(), k -> new ArrayList<>()).add(a);
+        }
+
+        int deleted = 0;
+        for (Map.Entry<String, List<AdminAsset>> entry : grouped.entrySet()) {
+            List<AdminAsset> group = entry.getValue();
+            AdminAsset keep = group.get(0); // lowest id = keep
+            for (int i = 1; i < group.size(); i++) {
+                AdminAsset dupe = group.get(i);
+                // Remap source_ticker_config rows that reference the duplicate symbol
+                sourceTickerRepo.findBySourceIdAndSymbolIgnoreCase(keep.getSymbol(), dupe.getSymbol())
+                        .ifPresent(cfg -> {
+                            cfg.setSymbol(keep.getSymbol());
+                            sourceTickerRepo.save(cfg);
+                        });
+                assetRepository.delete(dupe);
+                log.info("Deleted duplicate asset: id={}, symbol='{}' (kept id={}, symbol='{}')",
+                        dupe.getId(), dupe.getSymbol(), keep.getId(), keep.getSymbol());
+                deleted++;
+            }
+        }
+        return deleted;
     }
 
     /**
