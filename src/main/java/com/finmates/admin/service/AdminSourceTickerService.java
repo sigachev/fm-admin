@@ -4,6 +4,7 @@ import com.finmates.admin.dto.DiscoveryStatusDto;
 import com.finmates.admin.dto.SourceAvailableTokenDto;
 import com.finmates.admin.dto.SourceTickerConfigDto;
 import com.finmates.admin.entity.aggregator.AggregatorSourceTickerConfig;
+import com.finmates.admin.repository.aggregator.AdminAssetRepository;
 import com.finmates.admin.repository.aggregator.AggregatorSourceTickerConfigRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public class AdminSourceTickerService {
 
     private final AggregatorSourceTickerConfigRepository repo;
+    private final AdminAssetRepository assetRepository;
     private final AggregatorClient aggregatorClient;
 
     private final AtomicBoolean discovering = new AtomicBoolean(false);
@@ -112,6 +115,10 @@ public class AdminSourceTickerService {
      * isNew=true means the token has not been enabled yet (is_enabled=false).
      */
     public List<SourceAvailableTokenDto> getAvailableTokens(String sourceId, boolean onlyNew) {
+        Set<String> assetSymbols = assetRepository.findAll().stream()
+            .map(a -> a.getSymbol().toUpperCase())
+            .collect(Collectors.toSet());
+
         return repo.findBySourceId(sourceId).stream()
             .filter(config -> !onlyNew || !config.isEnabled())
             .map(config -> new SourceAvailableTokenDto(
@@ -120,7 +127,7 @@ public class AdminSourceTickerService {
                 config.getRestSymbol(),
                 !config.isEnabled(),
                 config.isEnabled(),
-                false  // isAsset: unknown from ticker config alone; aggregator sets this for browse flow
+                assetSymbols.contains(config.getSymbol().toUpperCase())
             ))
             .collect(Collectors.toList());
     }
