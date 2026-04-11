@@ -80,6 +80,7 @@ public class AdminAsset {
 
     @PrePersist
     protected void onCreate() {
+        if (symbol != null) symbol = symbol.toUpperCase();
         if (createdAt == null) {
             createdAt = Instant.now();
         }
@@ -93,6 +94,7 @@ public class AdminAsset {
 
     @PreUpdate
     protected void onUpdate() {
+        if (symbol != null) symbol = symbol.toUpperCase();
         updatedAt = Instant.now();
     }
 }
