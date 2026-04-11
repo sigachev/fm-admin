@@ -29,6 +29,9 @@ public class AdminAsset {
     @Column(name = "name", length = 100)
     private String name;
 
+    @Column(name = "binance_symbol", length = 50)
+    private String binanceSymbol;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 
