@@ -267,6 +267,44 @@ public class AdminTokenService {
         return assetRepository.countByIsActiveTrue();
     }
 
+    /**
+     * Bulk set is_active for a list of symbols.
+     * Returns the number of rows updated.
+     */
+    public int bulkSetActive(List<String> symbols, boolean active) {
+        if (symbols == null || symbols.isEmpty()) return 0;
+        List<String> upper = symbols.stream().map(String::toUpperCase).toList();
+        int updated = assetRepository.setActiveBySymbols(upper, active);
+        log.info("bulkSetActive: set is_active={} for {} symbols ({} updated)", active, upper.size(), updated);
+        try {
+            aggregatorClient.reloadAssets();
+        } catch (Exception e) {
+            log.warn("bulkSetActive: reloadAssets failed: {}", e.getMessage());
+        }
+        return updated;
+    }
+
+    /**
+     * Activates all assets that have at least one enabled ticker in source_ticker_config.
+     * Only assets currently inactive (is_active = false or null) are changed.
+     * Returns the number of newly activated assets.
+     */
+    public int activateSyncedTokens() {
+        Set<String> syncedSymbols = sourceTickerRepo.findAllEnabled()
+                .stream()
+                .map(t -> t.getSymbol().toUpperCase())
+                .collect(Collectors.toSet());
+
+        if (syncedSymbols.isEmpty()) {
+            log.info("activateSyncedTokens: no enabled tickers found — nothing to activate");
+            return 0;
+        }
+
+        int activated = assetRepository.activateBySymbols(syncedSymbols);
+        log.info("activateSyncedTokens: activated {} assets from {} synced symbols", activated, syncedSymbols.size());
+        return activated;
+    }
+
     // ── Mapper ────────────────────────────────────────────────────────────────────
 
     private AdminTokenDto toDto(AdminAsset asset) {

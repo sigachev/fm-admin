@@ -51,6 +51,22 @@ public interface AdminAssetRepository extends JpaRepository<AdminAsset, Long> {
     );
 
     /**
+     * Activate all assets whose symbol is in the given set and are not already active.
+     * Returns the number of rows updated.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE AdminAsset a SET a.isActive = true WHERE a.symbol IN :symbols AND (a.isActive IS NULL OR a.isActive = false)")
+    int activateBySymbols(@Param("symbols") Collection<String> symbols);
+
+    /**
+     * Set is_active to the given value for all assets whose symbol is in the given set.
+     * Returns the number of rows updated.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE AdminAsset a SET a.isActive = :active WHERE a.symbol IN :symbols")
+    int setActiveBySymbols(@Param("symbols") Collection<String> symbols, @Param("active") boolean active);
+
+    /**
      * Find all assets that have a case-insensitive duplicate symbol (UPPER(symbol) appears more than once).
      * Returns all rows that are part of a duplicate group, ordered by UPPER(symbol) then id.
      */

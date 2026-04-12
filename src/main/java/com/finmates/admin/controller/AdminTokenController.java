@@ -147,6 +147,32 @@ public class AdminTokenController {
     }
 
     /**
+     * Bulk set is_active for a list of symbols.
+     * Body: { "symbols": ["BTC","ETH",...], "active": true/false }
+     * Returns { updated: N, requested: M }.
+     */
+    @PostMapping("/bulk-active")
+    public ResponseEntity<java.util.Map<String, Integer>> bulkSetActive(
+            @RequestBody java.util.Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<String> symbols = (List<String>) body.getOrDefault("symbols", List.of());
+        boolean active = Boolean.TRUE.equals(body.get("active"));
+        int updated = tokenService.bulkSetActive(symbols, active);
+        return ResponseEntity.ok(java.util.Map.of("updated", updated, "requested", symbols.size()));
+    }
+
+    /**
+     * Activates all assets that have at least one enabled ticker in source_ticker_config.
+     * Only currently inactive assets are changed.
+     * Returns { activated: N } — the number of assets that were activated.
+     */
+    @PostMapping("/activate-synced")
+    public ResponseEntity<java.util.Map<String, Integer>> activateSyncedTokens() {
+        int activated = tokenService.activateSyncedTokens();
+        return ResponseEntity.ok(java.util.Map.of("activated", activated));
+    }
+
+    /**
      * Returns aggregate counts for the token stats panel.
      * Computed from the full asset table — not page-limited.
      */

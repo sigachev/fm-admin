@@ -18,4 +18,7 @@ public interface AggregatorSourceTickerConfigRepository
 
     @Query("SELECT t FROM AggregatorSourceTickerConfig t WHERE t.sourceId = :sourceId AND t.enabled = true")
     List<AggregatorSourceTickerConfig> findEnabledBySourceId(@Param("sourceId") String sourceId);
+
+    @Query("SELECT t FROM AggregatorSourceTickerConfig t WHERE t.enabled = true")
+    List<AggregatorSourceTickerConfig> findAllEnabled();
 }
