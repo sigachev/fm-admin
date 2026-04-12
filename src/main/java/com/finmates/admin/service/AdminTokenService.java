@@ -5,6 +5,7 @@ import com.finmates.admin.dto.CreateTokenRequest;
 import com.finmates.admin.dto.SourceStatusDto;
 import com.finmates.admin.dto.UpdateTokenRequest;
 import com.finmates.admin.entity.aggregator.AdminAsset;
+import com.finmates.admin.entity.aggregator.AggregatorSourceTickerConfig;
 import com.finmates.admin.repository.aggregator.AdminAssetRepository;
 import com.finmates.admin.repository.aggregator.AggregatorSourceTickerConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -303,6 +304,77 @@ public class AdminTokenService {
         int activated = assetRepository.activateBySymbols(syncedSymbols);
         log.info("activateSyncedTokens: activated {} assets from {} synced symbols", activated, syncedSymbols.size());
         return activated;
+    }
+
+    /**
+     * Enables all source_ticker_config rows whose symbol (case-insensitive) matches an active
+     * asset in the asset table. Optionally runs token discovery first to seed new rows from
+     * exchange REST APIs (seeds with enabled=false, then this method enables them).
+     *
+     * Steps:
+     *   1. (optional) POST /api/v1/discovery/seed → populates source_ticker_config for all
+     *      exchange-available tokens with enabled=false
+     *   2. Load all active asset symbols from asset table
+     *   3. Enable all source_ticker_config rows whose symbol matches an active asset
+     *   4. Reload aggregator so the new config takes effect immediately
+     *
+     * Returns { "enabled": N, "alreadyEnabled": M, "discovered": K } where:
+     *   enabled       = rows newly set to enabled=true
+     *   alreadyEnabled = rows that were already enabled (no-op)
+     *   discovered    = total rows seeded by discovery step (0 if discoverFirst=false)
+     */
+    @Transactional("aggregatorTransactionManager")
+    public Map<String, Integer> autoEnableAllTickers(boolean discoverFirst) {
+        int discovered = 0;
+        if (discoverFirst) {
+            try {
+                Map<String, Integer> seedResult = aggregatorClient.discoverAndSeedTokens();
+                discovered = seedResult.values().stream().mapToInt(Integer::intValue).sum();
+                log.info("autoEnableAllTickers: discovery seeded {} new ticker rows", discovered);
+            } catch (Exception e) {
+                log.warn("autoEnableAllTickers: discovery step failed (continuing): {}", e.getMessage());
+            }
+        }
+
+        // Build set of active asset symbols (always uppercase in asset table)
+        Set<String> activeSymbols = assetRepository.findAll()
+                .stream()
+                .filter(a -> Boolean.TRUE.equals(a.getIsActive()))
+                .map(a -> a.getSymbol().toUpperCase())
+                .collect(Collectors.toSet());
+
+        if (activeSymbols.isEmpty()) {
+            log.info("autoEnableAllTickers: no active assets found — nothing to enable");
+            return Map.of("enabled", 0, "alreadyEnabled", 0, "discovered", discovered);
+        }
+
+        // Find all ticker configs matching any active asset symbol
+        List<AggregatorSourceTickerConfig> matching = sourceTickerRepo.findAll()
+                .stream()
+                .filter(t -> activeSymbols.contains(t.getSymbol().toUpperCase()))
+                .toList();
+
+        int alreadyEnabled = (int) matching.stream().filter(AggregatorSourceTickerConfig::isEnabled).count();
+
+        List<AggregatorSourceTickerConfig> toEnable = matching.stream()
+                .filter(t -> !t.isEnabled())
+                .toList();
+
+        if (!toEnable.isEmpty()) {
+            toEnable.forEach(t -> t.setEnabled(true));
+            sourceTickerRepo.saveAll(toEnable);
+        }
+
+        log.info("autoEnableAllTickers: enabled={}, alreadyEnabled={}, activeAssets={}, discovered={}",
+                toEnable.size(), alreadyEnabled, activeSymbols.size(), discovered);
+
+        try {
+            aggregatorClient.reloadAssets();
+        } catch (Exception e) {
+            log.warn("autoEnableAllTickers: reloadAssets failed: {}", e.getMessage());
+        }
+
+        return Map.of("enabled", toEnable.size(), "alreadyEnabled", alreadyEnabled, "discovered", discovered);
     }
 
     // ── Mapper ────────────────────────────────────────────────────────────────────

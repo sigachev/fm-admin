@@ -157,6 +157,7 @@ GET    /api/admin/tokens/discovery/sources  available source data providers
 GET    /api/admin/tokens/discovery/available  tokens available on connected sources
 POST   /api/admin/tokens/discovery/add    add discovered token to platform (?symbol= &name= &rank=)
 POST   /api/admin/tokens/discovery/add/bulk  bulk add tokens { "symbols": [...] }
+POST   /api/admin/tokens/auto-enable-tickers?discover=false  enable all source_ticker_config rows for active assets; discover=true seeds first (30+ s)
 ```
 
 ### Token Source & Ticker Configuration

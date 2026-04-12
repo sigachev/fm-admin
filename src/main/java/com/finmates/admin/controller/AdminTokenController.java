@@ -173,6 +173,23 @@ public class AdminTokenController {
     }
 
     /**
+     * Enable all source_ticker_config rows whose symbol matches an active asset.
+     * Use discover=true to first seed new ticker rows from exchange REST APIs (30+ seconds).
+     * Use discover=false (default) to only enable already-seeded rows for active assets.
+     *
+     * Returns { enabled: N, alreadyEnabled: M, discovered: K }
+     *   enabled       = rows newly set to enabled=true
+     *   alreadyEnabled = rows that were already enabled
+     *   discovered    = rows seeded by discovery step (0 when discover=false)
+     */
+    @PostMapping("/auto-enable-tickers")
+    public ResponseEntity<java.util.Map<String, Integer>> autoEnableAllTickers(
+            @RequestParam(defaultValue = "false") boolean discover) {
+        java.util.Map<String, Integer> result = tokenService.autoEnableAllTickers(discover);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * Returns aggregate counts for the token stats panel.
      * Computed from the full asset table — not page-limited.
      */
