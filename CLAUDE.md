@@ -145,6 +145,7 @@ DELETE /api/admin/news/{id}              delete article (deletes from crypto_dat
 ### Token & Asset Management
 ```
 GET    /api/admin/tokens                  paginated token list (?search= &sourceId=)
+GET    /api/admin/tokens/stats            aggregate counts: { totalTokens, activeTokens } — use for stat panels, not data?.totalElements / page filtering
 GET    /api/admin/tokens/{symbol}         token detail with price/volume data
 POST   /api/admin/tokens                  create new token { "symbol", "name", "rank" }
 PUT    /api/admin/tokens/{symbol}         update token metadata

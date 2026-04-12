@@ -147,6 +147,18 @@ public class AdminTokenController {
     }
 
     /**
+     * Returns aggregate counts for the token stats panel.
+     * Computed from the full asset table — not page-limited.
+     */
+    @GetMapping("/stats")
+    public java.util.Map<String, Long> getStats() {
+        return java.util.Map.of(
+                "totalTokens",  tokenService.getTotalTokenCount(),
+                "activeTokens", tokenService.getActiveTokenCount()
+        );
+    }
+
+    /**
      * Detect case-insensitive duplicate symbols in the asset table.
      * Returns a map of UPPER(symbol) → list of duplicate rows.
      * Safe to call at any time — read-only.
