@@ -1,48 +1,45 @@
-target/
-*.class
-*.jar
-*.war
-*.ear
-.mvn/wrapper/maven-wrapper.jar
-.idea/
-*.iml
-.vscode/
-*.DS_Store
-application-dev.properties
-application-dev.yml
-
-
-HELP.md
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-out/
-cert/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
+*.iml
 *.ipr
+out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+### Build Tools ###
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+# Do not ignore the maven wrapper jar
+!/.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
 build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+!gradle/wrapper/gradle-wrapper.jar
 
+### Java ###
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+hs_err_pid*
+
+### Environment & Secrets ###
+.env
+.env.local
+application-local.properties
+application-local.yml
+
+### OS Specific ###
+.DS_Store
+Thumbs.db
 
 
 # Graphify
