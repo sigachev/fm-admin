@@ -310,3 +310,16 @@ controller/
   AdminToken*, AdminTokenSource*  — Token/asset/source management endpoints
   AdminNews*, AdminStats*         — News + stats endpoints
 ```
+
+
+## Codebase Context
+This is a monorepo. Before making architectural decisions or cross-service changes, consult:
+- `graphify-out/GRAPH_REPORT.md` — codebase graph summary
+- `graphify-out/graph.json` — detailed node/edge data
+
+### Key Architecture (from Graphify)
+- **God nodes**: UserService, UserRepository, KeycloakAdminClientService, PortfolioController
+- **Hyperedges**: 
+  - Cross-Service JWT Auth: finmates-main ↔ finmates-crypto ↔ finmates-front via Keycloak
+  - Price Pipeline: fm-crypto-aggregator → fm-crypto-data → SSE consumers
+  - Admin: Triple datasource (main, crypto, crypto_data DBs)
