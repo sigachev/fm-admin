@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Before Starting Any Task
+1. Read claude mem.md for session memory
+2. For architectural questions, check `graphify-out/GRAPH_REPORT.md`
+
 ## fm-admin
 
 Admin backend service for the FinMates platform.
@@ -323,3 +327,34 @@ This is a monorepo. Before making architectural decisions or cross-service chang
   - Cross-Service JWT Auth: finmates-main ↔ finmates-crypto ↔ finmates-front via Keycloak
   - Price Pipeline: fm-crypto-aggregator → fm-crypto-data → SSE consumers
   - Admin: Triple datasource (main, crypto, crypto_data DBs)
+
+## Persistent Context (claude-mem)
+Cross-session memory via the `claude-mem` MCP plugin (thedotmack/claude-mem v12.1.0).
+
+**Storage**: `C:/Users/user/.claude-mem/claude-mem.db` (SQLite)
+Override path: set `CLAUDE_MEM_DATA_DIR` env var or edit `~/.claude-mem/settings.json`
+
+### When to use it
+- **Session start** — search for prior decisions, bugs, or patterns before touching shared code
+- **Before cross-service changes** — retrieve past learnings about JWT auth, Keycloak, portfolio flows
+- **After fixing a non-obvious bug** — observations are auto-saved by the SessionStart hook; search them next time the same area breaks
+
+### 3-layer search workflow (follow this order — 10x token savings)
+```
+1. search("topic keyword")          → index of matching IDs (~50-100 tokens each)
+2. timeline(anchor=ID)              → surrounding session context for promising hits
+3. get_observations([ID1, ID2])     → full detail ONLY for the IDs you actually need
+```
+
+### Key tool reference
+| Tool | Purpose |
+|------|---------|
+| `search(query)` | Fast keyword/semantic index lookup — returns IDs + summaries |
+| `smart_search(query)` | Broader semantic search across all observations |
+| `timeline(anchor=ID)` | Session timeline around a specific observation |
+| `get_observations([IDs])` | Fetch full text for specific observation IDs |
+| `build_corpus(name, query)` | Build a focused retrieval corpus for a topic |
+| `query_corpus(name, query)` | Query a pre-built corpus |
+
+### What is stored
+The SessionStart hook auto-records a summary of each session (decisions made, bugs fixed, files changed). Observations are tagged with timestamps and session IDs visible in the session-start context block.
