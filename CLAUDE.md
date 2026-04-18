@@ -17,13 +17,34 @@ Java: 21, Spring Boot 3.3.5
 Admin-only backend for managing users, portfolios, trades, news, and token/asset metadata across the platform. All endpoints require `ROLE_ADMIN` JWT claim.
 
 **Data ownership model:**
-- `main` DB — read-only on `users`, read-write on `admin_news` (managed via V11 migration in finmates-main)
+- `main` DB — read-only on `users`, read-write on `admin_news` + `audit_log` (V11/V15 in finmates-main)
 - `crypto` DB — read-only on `portfolios`, `trades`, `positions` (with admin delete overrides)
 - `crypto_data` DB — read-write on `asset`, `news_article`, `news_source`; admin news is **mirrored** here via `AdminNewsService` for public display (best-effort, non-blocking)
 
 **Do NOT modify user, portfolio, or trade schemas directly.** All schema changes in those databases must be made in their respective services (`finmates-main`, `finmates-crypto`, `fm-crypto-aggregator`).
 
 ## Development Patterns
+
+### Moderation Orchestration Pattern (Prompt 6b)
+
+Moderation actions follow this sequence:
+1. **Controller** calls `AdminModerationService` with the `Jwt` principal
+2. **AdminModerationService** calls `FmSocialClient` or `FmMainClient` (RestTemplate, `X-Internal-Secret` header) for the actual state change
+3. **AuditLogService.record()** writes the `audit_log` row in the same @Transactional scope (main DB)
+4. If the HTTP call to fm-social/fm-main fails, an exception is thrown before the audit write — keeping them consistent
+
+**Never call fm-social or finmates-main DB directly from fm-admin.** Always go through `FmSocialClient` / `FmMainClient`.
+
+**JWT actor extraction pattern:**
+```java
+// In AdminModerationService.resolveActorDbId(Jwt jwt):
+adminUserRepository.findByKeycloakId(jwt.getSubject()).map(AdminUser::getId).orElse(null)
+// In AuditLogService.record(AuditAction, ..., Jwt actorJwt):
+actorJwt.getClaimAsString("preferred_username") → actorUsername
+actorJwt.getSubject() → keycloakId → DB lookup → actorUserId
+```
+
+**audit_log writes use default @Transactional** (no qualifier needed — main is @Primary).
 
 ### Adding a New Admin Endpoint
 1. **Entity** — if reading from an existing DB, the JPA entity already exists in the appropriate `entity/` package (main/crypto/aggregator)
@@ -180,6 +201,37 @@ GET    /api/admin/tokens/sources/available   available tokens from a source (?so
 GET    /api/admin/stats                   platform-wide counts (users, portfolios, trades, assets)
 ```
 
+### User Ban Management (Prompt 6b — proxies to finmates-main /api/internal/users/*)
+```
+POST   /api/admin/users/{id}/ban          ban user { "banType": "SUSPENSION|PERMANENT", "durationDays": N, "reason": "..." }
+POST   /api/admin/users/{id}/unban        lift active ban; records USER_UNBANNED audit
+GET    /api/admin/users/{id}/ban-history  all bans for user (newest first)
+GET    /api/admin/users/{id}/ban-status   current ban status { banned, banType, expiresAt }
+```
+
+### Moderation — Reports (Prompt 6b — proxies to fm-social /api/internal/reports/*)
+```
+GET    /api/admin/reports                 list reports (?status= &reason= &page= &size=) — pass-through from fm-social
+GET    /api/admin/reports/{id}            single report detail
+POST   /api/admin/reports/{id}/resolve    orchestrate resolution: action=REMOVE_POST|REMOVE_COMMENT|BAN_USER|DISMISS
+                                          { "action", "notes", "banDurationDays", "banType" }
+POST   /api/admin/reports/{id}/dismiss    shortcut dismiss { "notes" }
+```
+
+### Moderation — Direct Content (Prompt 6b — proxies to fm-social /api/internal/posts|comments/*)
+```
+POST   /api/admin/content/posts/{id}/remove     soft-remove post { "reason" } + audit POST_REMOVED
+POST   /api/admin/content/posts/{id}/restore    restore post + audit POST_RESTORED
+POST   /api/admin/content/comments/{id}/remove  soft-remove comment { "reason" } + audit COMMENT_REMOVED
+POST   /api/admin/content/comments/{id}/restore restore comment + audit COMMENT_RESTORED
+```
+
+### Audit Log (Prompt 6b — reads main DB audit_log table)
+```
+GET    /api/admin/audit                   paginated audit log (?action= &targetType= &targetId= &actorUserId= &startDate= &endDate=)
+GET    /api/admin/audit/user/{userId}     all audit entries where user is actor OR subject
+```
+
 ## Token & Asset Management
 
 ### Token Lifecycle (Aggregator DB)
@@ -264,6 +316,12 @@ Dev profile uses self-signed cert at `auth.finmates.com` — `KeycloakAdminProvi
 
 - **`getAvailableTokens()` `isAsset` was hardcoded `false`** — Fixed: now fetches all asset symbols from the `asset` table and checks membership. Requires no backend call — reads from the same `aggregatorDataSource`. Visible effect: Browse page "In Platform" stat now shows the correct count instead of always 0.
 
+- **fm-admin has no WebFlux dependency — use RestTemplate, not WebClient** — `pom.xml` only has `spring-boot-starter-web`. `FmSocialClient` and `FmMainClient` follow the same RestTemplate pattern as `AggregatorClient`. Adding `spring-boot-starter-webflux` would conflict with the existing MVC setup. Do NOT add it unless WebFlux is explicitly needed.
+
+- **Internal service clients require `INTERNAL_SHARED_SECRET` env var** — `FmSocialClient` and `FmMainClient` both read `${INTERNAL_SHARED_SECRET:dev-local-secret}` (via `fm-admin.internal-secret` property). In K8s, this is injected from the `fm-internal-secret` Secret. Locally, the dev default `dev-local-secret` matches fm-social and finmates-main's dev default. If fm-social returns 401 on internal calls, check this value matches across all three services.
+
+- **`audit_log` table must exist before fm-admin writes audit entries** — The table is created by finmates-main V15 migration on its next startup. fm-admin's `AuditLog` JPA entity uses `ddl-auto=none` — it will NOT create the table. If fm-admin throws `Table 'main.audit_log' doesn't exist`, restart finmates-main first.
+
 - **HikariCP requires `jdbc-url`, not `url`** — when using custom `@ConfigurationProperties` prefix (e.g. `datasource.main.*`), HikariCP does not perform Spring Boot's auto-mapping of `url` → `jdbcUrl`. Always use `jdbc-url` in property files. The k8s profile has a bug: uses `url` instead of `jdbc-url` — fix before deploying to Kubernetes, or service will fail with `IllegalArgumentException: jdbcUrl is required with driverClassName`.
 
 - **Nullable `is_active` column in users table** — the `is_active` column in the main DB's `users` table can be NULL for legacy records. `AdminUser.isActive` is a `Boolean` wrapper (not primitive `boolean`) to allow null. When mapping to DTOs, always null-check: `dto.setEnabled(u.getIsActive() != null ? u.getIsActive() : false)` to avoid `NullPointerException` on unboxing.
@@ -285,18 +343,24 @@ config/
   SchemaInitializer.java             — Initialize FinMates news source on startup
 
 entity/
-  main/        AdminUser, AdminNewsArticle
+  main/        AdminUser, AdminNewsArticle, AuditLog (+ AuditAction, AuditTargetType enums)
   crypto/      AdminPortfolio, AdminTrade, AdminPosition
   aggregator/  AdminAsset, AggregatorNewsSource, AggregatorNewsArticle, AggregatorSourceTickerConfig
 
 repository/
-  main/        AdminUserRepository, AdminNewsRepository
+  main/        AdminUserRepository (+ findByKeycloakId), AdminNewsRepository, AuditLogRepository
   crypto/      AdminPortfolioRepository, AdminTradeRepository, AdminPositionRepository
   aggregator/  AdminAssetRepository, AggregatorNewsSourceRepository, AggregatorNewsArticleRepository,
                AggregatorSourceTickerConfigRepository
 
+client/
+  FmSocialClient   — RestTemplate client for fm-social /api/internal/** (X-Internal-Secret header)
+  FmMainClient     — RestTemplate client for finmates-main /api/internal/** (X-Internal-Secret header)
+
 service/
   Admin*Service        — Business logic for users, portfolios, trades, positions, news, stats
+  AdminModerationService — Orchestrates report resolution, content removal, user bans + writes audit
+  AuditLogService      — Writes + queries audit_log (main DB, @Primary TM, Specification-based search)
   AdminKeycloakService — Password reset via Keycloak admin client
   AdminTokenService    — Token CRUD and discovery
   AdminSourceTickerService  — Source ticker mapping management
@@ -305,12 +369,23 @@ service/
   AggregatorClient     — Internal REST client for aggregator service health checks
 
 dto/
-  Admin*Dto          — Response DTOs for all entities
-  Create*Request     — Request bodies for POST/PUT operations
+  Admin*Dto               — Response DTOs for all entities
+  Create*Request          — Request bodies for POST/PUT operations
+  PageResponse<T>         — Generic page wrapper (matches fm-social page JSON shape)
+  ReportDetailResponse    — Report JSON from fm-social
+  ResolveReportRequest, DismissReportRequest — Report resolution inputs
+  BanUserRequest, UnbanUserRequest, UserBanResponse, BanStatusResponse — Ban management
+  RemoveContentRequest    — Content removal input
+  AuditLogResponse        — Audit log response (maps AuditLog entity)
+  PostContentResponse, CommentContentResponse — Social content responses
   SourceTickerConfigDto, SourceStatusDto, SourceTokensDto, AvailableTokenDto
 
 controller/
-  AdminUser*, AdminPortfolio*, AdminTrade*, AdminPosition* — CRUD endpoints
+  AdminUser*              — CRUD + ban management (ban/unban/ban-history/ban-status)
+  AdminReportController   — Report list + resolve + dismiss (proxies to fm-social)
+  AdminContentController  — Direct post/comment remove/restore (proxies to fm-social)
+  AdminAuditController    — Audit log search and user history
+  AdminPortfolio*, AdminTrade*, AdminPosition* — Portfolio/trade endpoints
   AdminToken*, AdminTokenSource*  — Token/asset/source management endpoints
   AdminNews*, AdminStats*         — News + stats endpoints
 ```

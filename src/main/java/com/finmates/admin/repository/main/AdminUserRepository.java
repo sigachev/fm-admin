@@ -14,4 +14,6 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long> {
             String username, String email, Pageable pageable);
 
     long countByCreatedAtAfter(OffsetDateTime since);
+
+    java.util.Optional<AdminUser> findByKeycloakId(String keycloakId);
 }

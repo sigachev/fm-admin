@@ -24,6 +24,15 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: k8s
+            - name: FM_SOCIAL_URL
+              value: "http://social"
+            - name: FM_MAIN_URL
+              value: "http://finmates-main"
+            - name: INTERNAL_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fm-internal-secret
+                  key: secret
           resources:
             limits:
               cpu: 500m
