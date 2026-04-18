@@ -131,6 +131,16 @@ public class AdminModerationService {
                 request.notes(), adminDbId);
     }
 
+    // ── Content preview ───────────────────────────────────────────────────────
+
+    public PostContentResponse getPostPreview(Long postId) {
+        return socialClient.getPostPreview(postId);
+    }
+
+    public CommentContentResponse getCommentPreview(Long commentId) {
+        return socialClient.getCommentPreview(commentId);
+    }
+
     // ── Content (direct, not via report) ─────────────────────────────────────
 
     @Transactional

@@ -22,6 +22,16 @@ public class AdminContentController {
 
     private final AdminModerationService moderationService;
 
+    @GetMapping("/posts/{id}/preview")
+    public PostContentResponse getPostPreview(@PathVariable Long id) {
+        return moderationService.getPostPreview(id);
+    }
+
+    @GetMapping("/comments/{id}/preview")
+    public CommentContentResponse getCommentPreview(@PathVariable Long id) {
+        return moderationService.getCommentPreview(id);
+    }
+
     @PostMapping("/posts/{id}/remove")
     public PostContentResponse removePost(
             @PathVariable Long id,

@@ -100,6 +100,13 @@ public class FmSocialClient {
 
     // ── Posts ──────────────────────────────────────────────────────────────
 
+    public PostContentResponse getPostPreview(Long postId) {
+        String url = socialUrl + "/api/internal/posts/" + postId;
+        ResponseEntity<PostContentResponse> response = restTemplate.exchange(
+                url, HttpMethod.GET, entityWithSecret(), PostContentResponse.class);
+        return response.getBody();
+    }
+
     public PostContentResponse removePost(Long postId, Long adminUserId, String reason) {
         String url = socialUrl + "/api/internal/posts/" + postId + "/remove"
                 + (reason != null ? "?reason=" + encode(reason) : "");
@@ -126,6 +133,13 @@ public class FmSocialClient {
     }
 
     // ── Comments ─────────────────────────────────────────────────────────────
+
+    public CommentContentResponse getCommentPreview(Long commentId) {
+        String url = socialUrl + "/api/internal/comments/" + commentId;
+        ResponseEntity<CommentContentResponse> response = restTemplate.exchange(
+                url, HttpMethod.GET, entityWithSecret(), CommentContentResponse.class);
+        return response.getBody();
+    }
 
     public CommentContentResponse removeComment(Long commentId, Long adminUserId, String reason) {
         String url = socialUrl + "/api/internal/comments/" + commentId + "/remove"

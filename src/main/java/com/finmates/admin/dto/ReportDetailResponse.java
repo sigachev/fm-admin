@@ -15,6 +15,7 @@ import lombok.Setter;
 public class ReportDetailResponse {
     private Long id;
     private Long reporterId;
+    private String reporterUsername;
     private String targetType;   // POST | COMMENT | USER
     private Long targetId;
     private String reason;       // SPAM | HARASSMENT | etc.
