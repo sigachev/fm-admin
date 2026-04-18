@@ -403,6 +403,28 @@ This is a monorepo. Before making architectural decisions or cross-service chang
   - Price Pipeline: fm-crypto-aggregator → fm-crypto-data → SSE consumers
   - Admin: Triple datasource (main, crypto, crypto_data DBs)
 
+## Claude Code tooling
+
+This repo is indexed by Graphify at `F:\Projects\graphify-out\`. The post-commit hook (installed via `graphify hook install`) auto-rebuilds the AST graph on every commit — no LLM cost, ~1–3 s.
+
+Before starting complex refactors, query the graph for dependency impact:
+```bash
+graphify query "<search term>"                       # BFS traversal of graph.json
+graphify query "<search term>" --dfs --budget 4000  # DFS with higher token budget
+```
+
+Hook management:
+```bash
+cd F:/Projects/fm-admin
+graphify hook status    # verify hook is installed
+graphify hook install   # reinstall if missing
+```
+
+Full workspace re-index (all 7 services at once, from monorepo root):
+```bash
+cd F:/Projects && graphify update .
+```
+
 ## Persistent Context (claude-mem)
 Cross-session memory via the `claude-mem` MCP plugin (thedotmack/claude-mem v12.1.0).
 
