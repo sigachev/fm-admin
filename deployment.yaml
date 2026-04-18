@@ -32,7 +32,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: fm-internal-secret
-                  key: secret
+                  key: internal-shared-secret
           resources:
             limits:
               cpu: 500m
