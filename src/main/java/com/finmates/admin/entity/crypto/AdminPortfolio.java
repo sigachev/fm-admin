@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 /**
@@ -43,11 +42,8 @@ public class AdminPortfolio {
     @Column(name = "provider", length = 30)
     private String provider;
 
-    @Column(name = "cash_balance", nullable = false, precision = 20, scale = 2)
-    private BigDecimal cashBalance;
-
-    @Column(name = "initial_balance", nullable = false, precision = 20, scale = 2)
-    private BigDecimal initialBalance;
+    // cash_balance / initial_balance dropped in V10 shared-wallet refactor —
+    // cash now lives on users.virtual_wallet_balance / users.starting_capital (main DB).
 
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;

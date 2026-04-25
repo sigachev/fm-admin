@@ -65,10 +65,12 @@ public class AdminPortfolioService {
     public AdminPortfolioDto resetPortfolio(Long id) {
         AdminPortfolio portfolio = portfolioRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found: " + id));
+        // V10 shared-wallet refactor: cash lives on users.virtual_wallet_balance (main DB),
+        // not on the portfolio. Reset only clears positions; wallet reset is a separate concern
+        // owned by finmates-main and not exposed via fm-admin yet.
         positionRepository.deleteByPortfolioId(id);
-        portfolio.setCashBalance(portfolio.getInitialBalance());
         portfolio.setUpdatedAt(OffsetDateTime.now());
-        log.info("Admin reset portfolio id={} userId={}", id, portfolio.getUserId());
+        log.info("Admin reset portfolio id={} userId={} (positions only)", id, portfolio.getUserId());
         return toDto(portfolioRepository.save(portfolio));
     }
 
@@ -87,8 +89,6 @@ public class AdminPortfolioService {
         dto.setName(p.getName());
         dto.setType(p.getType());
         dto.setProvider(p.getProvider());
-        dto.setCashBalance(p.getCashBalance());
-        dto.setInitialBalance(p.getInitialBalance());
         dto.setDefault(p.isDefault());
         dto.setPublic(p.isPublic());
         dto.setCreatedAt(p.getCreatedAt());
