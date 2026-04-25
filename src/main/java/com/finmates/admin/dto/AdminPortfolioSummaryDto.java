@@ -5,8 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,7 +14,6 @@ public class AdminPortfolioSummaryDto {
     private Long id;
     private String name;
     private String type;
-    private BigDecimal cashBalance;
     private boolean isDefault;
     private boolean isPublic;
 }

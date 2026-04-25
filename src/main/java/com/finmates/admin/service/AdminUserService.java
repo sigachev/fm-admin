@@ -42,7 +42,7 @@ public class AdminUserService {
         List<AdminPortfolioSummaryDto> portfolios = portfolioRepository.findByUserId(id).stream()
                 .map(p -> new AdminPortfolioSummaryDto(
                         p.getId(), p.getName(), p.getType(),
-                        p.getCashBalance(), p.isDefault(), p.isPublic()))
+                        p.isDefault(), p.isPublic()))
                 .toList();
 
         AdminUserDetailDto dto = new AdminUserDetailDto();
