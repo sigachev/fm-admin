@@ -111,9 +111,27 @@ public class AdminModerationService {
         auditLogService.record(auditAction, AuditTargetType.REPORT,
                 reportId, "Report #" + reportId, request.notes(), actorJwt);
 
-        // Update report status in fm-social
+        // Update report status in fm-social.
+        // The admin UI's action vocabulary (REMOVE_POST/REMOVE_COMMENT/BAN_USER/DISMISS) does NOT
+        // match fm-social's ResolutionAction enum — translate before sending or Jackson 400s.
         String socialStatus = "DISMISS".equals(action) ? "DISMISSED" : "REVIEWED";
-        return socialClient.resolveReport(reportId, socialStatus, action, request.notes(), adminDbId);
+        ResolutionAction socialResolutionAction = mapToResolutionAction(action);
+        return socialClient.resolveReport(reportId, socialStatus, socialResolutionAction,
+                request.notes(), adminDbId);
+    }
+
+    /**
+     * Translate the admin UI's action vocabulary to fm-social's
+     * {@link ResolutionAction} enum. See the enum's Javadoc for the full mapping.
+     */
+    private ResolutionAction mapToResolutionAction(String adminAction) {
+        return switch (adminAction) {
+            case "REMOVE_POST", "REMOVE_COMMENT" -> ResolutionAction.CONTENT_REMOVED;
+            case "BAN_USER" -> ResolutionAction.USER_BANNED;
+            case "DISMISS" -> ResolutionAction.NO_ACTION;
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Unknown action: " + adminAction);
+        };
     }
 
     @Transactional
@@ -128,7 +146,7 @@ public class AdminModerationService {
         auditLogService.record(AuditAction.REPORT_DISMISSED, AuditTargetType.REPORT,
                 reportId, "Report #" + reportId, request.notes(), actorJwt);
 
-        return socialClient.resolveReport(reportId, "DISMISSED", "DISMISS",
+        return socialClient.resolveReport(reportId, "DISMISSED", ResolutionAction.NO_ACTION,
                 request.notes(), adminDbId);
     }
 
