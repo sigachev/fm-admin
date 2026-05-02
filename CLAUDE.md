@@ -96,11 +96,18 @@ Connects to THREE databases simultaneously with mixed ownership:
 
 | Datasource | DB | Ownership | Tables used | DDL Mode |
 |------------|-----|-----------|-------------|----------|
-| `mainDataSource` (@Primary) | `main` (finmates-main) | Read-only users; Read-write news | `users`, `admin_news` | `ddl-auto=none` |
+| `mainDataSource` (@Primary) | `main` (finmates-main) | Read-only users; Read-write news + audit_log | `users`, `admin_news`, `audit_log` | `ddl-auto=update` (dev) / `validate` (k8s) |
 | `cryptoDataSource` | `crypto` (finmates-crypto) | Read-only (except admin deletes) | `portfolios`, `portfolio_trades`, `portfolio_positions` | `ddl-auto=none` |
 | `aggregatorDataSource` | `crypto_data` (fm-crypto-aggregator) | Read-write (owns asset + news tables) | `asset`, `news_article`, `news_source`, `asset_price_*` | `ddl-auto=none` |
 
-**Flyway is DISABLED** — this service never creates migration files or runs schema initialization automatically. The `admin_news` table in `main` DB was created by a direct SQL execute (V11__admin_news.sql from finmates-main). When deploying to a new environment, ensure all three databases exist and the `admin_news` table in `main` is created via:
+### Database conventions
+
+- **Main datasource uses `ddl-auto=update` in dev**, matching finmates-main's pattern. Set per-EMF in `DataSourceConfig.mainEntityManagerFactory` via the builder's `properties()` map (NOT via `spring.jpa.hibernate.ddl-auto`, since auto-config is excluded). Driven off `${spring.profiles.active:default}` — `dev` → `update`, anything else → `validate`.
+- **Hibernate-only tables on the main DB** (currently `audit_log`): no Flyway migration. Schema is auto-managed by Hibernate on dev startup; production deploys rely on the same DDL having run in dev first (then `validate` confirms parity in k8s).
+- **Indexes on Hibernate-managed tables** must be declared via `@Index` annotations on `@Table(indexes = { ... })` so Hibernate creates them alongside the table. See `AuditLog.java` for the canonical example (`idx_audit_log_created_at`, `idx_audit_log_actor`, `idx_audit_log_target`).
+- **Crypto and aggregator datasources stay at `ddl-auto=none`** — their schemas are owned by finmates-crypto (Flyway) and fm-crypto-aggregator (Flyway) respectively. Do NOT enable Hibernate DDL on those EMFs from this service.
+
+**Flyway is DISABLED** in fm-admin — this service never runs migrations. The `admin_news` table in `main` DB was created by a direct SQL execute (V11__admin_news.sql from finmates-main). When deploying to a new environment, ensure all three databases exist and the `admin_news` table in `main` is created via:
 ```bash
 psql -h <host> -U postgres -d main -f finmates-main/src/main/resources/db/migration/V11__admin_news.sql
 ```
@@ -117,7 +124,7 @@ All JPA infrastructure is configured manually across three config classes:
 - Entity scan packages: `entity.main` → main DB, `entity.crypto` → crypto DB
 - Repository scan packages: `repository.main` → main, `repository.crypto` → crypto (via `MainRepositoryConfig` / `CryptoRepositoryConfig`)
 - Naming strategy: `CamelCaseToUnderscoresNamingStrategy` — `firstName` → `first_name`
-- DDL: `ddl-auto=none` — service never modifies schema
+- DDL: main EMF overrides to `update` (dev) / `validate` (other) via `properties()` on the builder. Crypto and aggregator EMFs inherit the builder default `none`.
 
 **Aggregator Datasource** (`AggregatorRepositoryConfig.java`):
 - `aggregatorDataSource` / `aggregatorEntityManagerFactory` / `aggregatorTransactionManager`

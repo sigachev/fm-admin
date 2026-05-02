@@ -1,6 +1,7 @@
 package com.finmates.admin.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
@@ -26,6 +27,16 @@ import jakarta.annotation.PreDestroy;
 public class DataSourceConfig {
 
     private static final Logger logger = Logger.getLogger(DataSourceConfig.class.getName());
+
+    // Active Spring profile — controls ddl-auto for the main datasource only.
+    // Dev follows finmates-main's pattern (Hibernate auto-evolves the schema, no Flyway on main).
+    // Non-dev profiles use 'validate' to fail-fast on schema drift.
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
+
+    private String mainDdlAuto() {
+        return "dev".equalsIgnoreCase(activeProfile) ? "update" : "validate";
+    }
 
     // ── DataSource references for graceful shutdown ────────────────────────────────
     private DataSource mainDataSourceRef;
@@ -76,10 +87,17 @@ public class DataSourceConfig {
     public LocalContainerEntityManagerFactoryBean mainEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
             @Qualifier("mainDataSource") DataSource dataSource) {
+        // Override ddl-auto for the main datasource only.
+        // Dev: 'update' so Hibernate auto-creates Hibernate-owned tables (e.g. audit_log) — finmates-main
+        //      follows the same convention; main DB has no Flyway. Other profiles: 'validate'.
+        // Crypto and aggregator EMFs continue to use the builder's default 'none'.
+        String ddlAuto = mainDdlAuto();
+        logger.info("[MainEntityManagerFactory] hibernate.hbm2ddl.auto = " + ddlAuto + " (profile: " + activeProfile + ")");
         return builder
                 .dataSource(dataSource)
                 .packages("com.finmates.admin.entity.main")
                 .persistenceUnit("main")
+                .properties(Map.of("hibernate.hbm2ddl.auto", ddlAuto))
                 .build();
     }
 
