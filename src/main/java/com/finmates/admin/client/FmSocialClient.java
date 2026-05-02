@@ -40,6 +40,9 @@ public class FmSocialClient {
         this.internalSecret = internalSecret;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        // One-time startup log. Length only — never the value.
+        log.info("FmSocialClient initialized: baseUrl={}, internalSecretLength={}",
+                socialUrl, internalSecret == null ? 0 : internalSecret.length());
     }
 
     // ── Reports ──────────────────────────────────────────────────────────────
