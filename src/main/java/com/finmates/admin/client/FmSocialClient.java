@@ -2,6 +2,7 @@ package com.finmates.admin.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finmates.admin.client.dto.ResolutionAction;
 import com.finmates.admin.dto.CommentContentResponse;
 import com.finmates.admin.dto.PostContentResponse;
 import com.finmates.admin.dto.ReportDetailResponse;
@@ -11,6 +12,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -79,26 +81,44 @@ public class FmSocialClient {
      * Resolve a report in fm-social.
      * Sends status + resolutionAction to the internal endpoint.
      * X-Admin-User-Id is passed so fm-social records who resolved it.
+     *
+     * <p>{@code resolutionAction} is typed as the {@link ResolutionAction} enum so
+     * the wire value is always one of fm-social's accepted values
+     * (CONTENT_REMOVED, USER_WARNED, USER_SUSPENDED, USER_BANNED, NO_ACTION).
+     * Passing arbitrary strings used to cause silent 400s from Jackson.
      */
     public ReportDetailResponse resolveReport(Long reportId, String status,
-                                               String resolutionAction, String notes,
+                                               ResolutionAction resolutionAction, String notes,
                                                Long adminUserId) {
         String url = socialUrl + "/api/internal/reports/" + reportId + "/resolve";
 
-        Map<String, Object> body = Map.of(
-                "status", status,
-                "resolutionAction", resolutionAction != null ? resolutionAction : "",
-                "notes", notes != null ? notes : ""
-        );
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("status", status);
+        body.put("resolutionAction", resolutionAction);
+        body.put("notes", notes != null ? notes : "");
 
         HttpHeaders headers = headersWithSecret();
         headers.set("X-Admin-User-Id", String.valueOf(adminUserId));
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
-        ResponseEntity<ReportDetailResponse> response = restTemplate.exchange(
-                url, HttpMethod.PUT, entity, ReportDetailResponse.class);
-        return response.getBody();
+        try {
+            ResponseEntity<ReportDetailResponse> response = restTemplate.exchange(
+                    url, HttpMethod.PUT, entity, ReportDetailResponse.class);
+            return response.getBody();
+        } catch (HttpStatusCodeException e) {
+            String responseBody = e.getResponseBodyAsString();
+            String requestBodyJson;
+            try {
+                requestBodyJson = objectMapper.writeValueAsString(body);
+            } catch (Exception ex) {
+                requestBodyJson = body.toString();
+            }
+            log.error("fm-social resolveReport failed: status={} url={} requestBody={} responseBody={}",
+                    e.getStatusCode(), url, requestBodyJson, responseBody);
+            throw new FmSocialIntegrationException(e.getStatusCode(),
+                    parseErrorMessage(responseBody, e.getStatusCode().toString()));
+        }
     }
 
     // ── Posts ──────────────────────────────────────────────────────────────
@@ -187,5 +207,29 @@ public class FmSocialClient {
         } catch (Exception e) {
             return value;
         }
+    }
+
+    /**
+     * Best-effort extract a human-readable message from an upstream JSON error body.
+     * Falls back to the raw body or status text if the body isn't a recognised shape.
+     */
+    @SuppressWarnings("unchecked")
+    private String parseErrorMessage(String responseBody, String statusFallback) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return statusFallback;
+        }
+        try {
+            Map<String, Object> parsed = objectMapper.readValue(responseBody, Map.class);
+            for (String key : List.of("message", "error", "detail", "hint")) {
+                Object value = parsed.get(key);
+                if (value != null && !value.toString().isBlank()) {
+                    return value.toString();
+                }
+            }
+        } catch (Exception ignored) {
+            // Body wasn't JSON — fall through.
+        }
+        // Truncate raw body so we don't blow up downstream toasts.
+        return responseBody.length() > 300 ? responseBody.substring(0, 300) + "…" : responseBody;
     }
 }
