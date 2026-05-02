@@ -4,8 +4,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "audit_log", indexes = {
@@ -45,9 +48,11 @@ public class AuditLog {
     @Column(length = 500)
     private String reason;
 
-    // Stored as JSON string; serialised/deserialised in service layer
-    @Column(columnDefinition = "jsonb")
-    private String metadata;
+    // Free-form JSON metadata. Hibernate handles Jackson (de)serialisation via @JdbcTypeCode(JSON);
+    // callers pass a Map and Hibernate binds it as PostgreSQL jsonb.
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private Map<String, Object> metadata;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
