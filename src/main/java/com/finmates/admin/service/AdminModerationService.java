@@ -2,6 +2,7 @@ package com.finmates.admin.service;
 
 import com.finmates.admin.client.FmMainClient;
 import com.finmates.admin.client.FmSocialClient;
+import com.finmates.admin.client.dto.ResolutionAction;
 import com.finmates.admin.dto.*;
 import com.finmates.admin.entity.main.AuditAction;
 import com.finmates.admin.entity.main.AuditTargetType;
