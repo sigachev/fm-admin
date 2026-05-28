@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="dev 8090" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ACTIVE_PROFILES" value="dev" />
+    <module name="fm-admin" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.finmates.admin.AdminApplication" />
+    <option name="VM_PARAMETERS" value="-Xms64m -Xmx512m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m -Dspring.devtools.restart.enabled=false " />
+    <extension name="software.aws.toolkits.jetbrains.core.execution.JavaAwsConnectionExtension">
+      <option name="credential" />
+      <option name="region" />
+      <option name="useCurrentConnection" value="false" />
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
