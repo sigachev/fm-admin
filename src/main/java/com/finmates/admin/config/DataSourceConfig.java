@@ -3,6 +3,7 @@ package com.finmates.admin.config;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
@@ -76,9 +77,9 @@ public class DataSourceConfig {
     @Bean("mainDataSource")
     @ConfigurationProperties(prefix = "datasource.main")
     public DataSource mainDataSource() {
-        DataSource ds = DataSourceBuilder.create().build();
+        HikariDataSource ds = DataSourceBuilder.create().type(HikariDataSource.class).build();
+        applyAdminPoolSizing(ds, "Main");
         mainDataSourceRef = ds;
-        logger.info("[MainDataSource] HikariCP pool initialized");
         return ds;
     }
 
@@ -113,9 +114,9 @@ public class DataSourceConfig {
     @Bean("cryptoDataSource")
     @ConfigurationProperties(prefix = "datasource.crypto")
     public DataSource cryptoDataSource() {
-        DataSource ds = DataSourceBuilder.create().build();
+        HikariDataSource ds = DataSourceBuilder.create().type(HikariDataSource.class).build();
+        applyAdminPoolSizing(ds, "Crypto");
         cryptoDataSourceRef = ds;
-        logger.info("[CryptoDataSource] HikariCP pool initialized");
         return ds;
     }
 
@@ -141,10 +142,40 @@ public class DataSourceConfig {
     @Bean("aggregatorDataSource")
     @ConfigurationProperties(prefix = "datasource.aggregator")
     public DataSource aggregatorDataSource() {
-        DataSource ds = DataSourceBuilder.create().build();
+        HikariDataSource ds = DataSourceBuilder.create().type(HikariDataSource.class).build();
+        applyAdminPoolSizing(ds, "Aggregator");
         aggregatorDataSourceRef = ds;
-        logger.info("[AggregatorDataSource] HikariCP pool initialized");
         return ds;
+    }
+
+    /**
+     * Set HikariCP sizing programmatically on each datasource.
+     *
+     * Why not properties? The three datasources are built via
+     * {@code DataSourceBuilder.create().build()} with
+     * {@code @ConfigurationProperties(prefix="datasource.{ds}")}. Spring's relaxed
+     * binding on that prefix only navigates HikariDataSource's top-level setters
+     * (jdbcUrl, username, password, driverClassName). There is no
+     * {@code getHikari()} accessor on HikariDataSource, so a nested
+     * {@code datasource.{ds}.hikari.maximum-pool-size} key has no binding target —
+     * Spring silently ignores it (verified after commit aaa4d55: the JAR contained
+     * the nested config and admin-panel still held 10/10/10).
+     *
+     * Programmatic sizing here is the single source of truth: visible in code,
+     * applied before Spring's prefix binding (which only touches the connection
+     * fields above), and immune to future property-binding regressions.
+     *
+     * fm-admin is low-traffic; 3 connections per DS is generous. min-idle=0 lets
+     * pools shrink fully between requests at the cost of a cold-connection round
+     * trip on the first request after idle — acceptable for an admin panel.
+     */
+    private void applyAdminPoolSizing(HikariDataSource ds, String label) {
+        ds.setMaximumPoolSize(3);
+        ds.setMinimumIdle(0);
+        ds.setConnectionTimeout(10000);
+        ds.setIdleTimeout(600000);
+        ds.setMaxLifetime(1800000);
+        logger.info("[" + label + "DataSource] HikariCP pool initialized (max=3, min-idle=0)");
     }
 
     @Bean("aggregatorEntityManagerFactory")
