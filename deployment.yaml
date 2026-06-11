@@ -14,6 +14,7 @@ spec:
       labels:
         app: admin-panel
     spec:
+      serviceAccountName: fm-admin-watcher
       containers:
         - name: admin-panel
           image: 10.0.0.70:8090/k8s-admin-panel:latest
