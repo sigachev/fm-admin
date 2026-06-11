@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="dev 8090" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+  <configuration default="false" name="fm-admin (8090)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
     <option name="ACTIVE_PROFILES" value="dev" />
     <module name="fm-admin" />
     <option name="SPRING_BOOT_MAIN_CLASS" value="com.finmates.admin.AdminApplication" />
@@ -11,6 +11,7 @@
     </extension>
     <method v="2">
       <option name="Make" enabled="true" />
+      <option name="BEFORE_RUN_SCRIPT" value="cmd /c ..\..\.scripts\kill-port.bat 8090" />
     </method>
   </configuration>
 </component>
