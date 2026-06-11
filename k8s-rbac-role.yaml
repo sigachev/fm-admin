@@ -1,0 +1,28 @@
+# Minimal read-only Role for the services-dashboard pod resolver.
+#
+# Permissions (LOCKED MINIMUM):
+#   resources: pods (core API group only)
+#   verbs:     get, list
+#
+# Deliberately NOT granted:
+#   - watch (the resolver polls every 30 s; no streaming need)
+#   - any verb beyond get/list (no create/patch/delete/update/deletecollection)
+#   - any other resource (no services, endpoints, configmaps, secrets, events,
+#     replicasets, deployments — NOTHING else)
+#   - any other apiGroup (apps, batch, networking.k8s.io, etc.)
+#   - cluster-scoped grants (this is a Role, NOT a ClusterRole)
+#   - other namespaces (this Role exists only in dev)
+#
+# Any future widening must be a separate, explicitly-reviewed change.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pods-reader
+  namespace: dev
+  labels:
+    app: admin-panel
+    purpose: pod-resolver
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]

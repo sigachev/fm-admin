@@ -105,6 +105,8 @@ public class ServicesStatusService {
         List<ServiceStatusDto> out = new ArrayList<>(descriptors.size());
         for (ServiceDescriptor d : descriptors) {
             HealthProbeResult probe = healthClient.probe(d);
+            java.util.Optional<com.finmates.admin.services.resolver.PodMetadata> meta =
+                    podResolver.getMetadataForService(d.name());
             DbConnectionCountsDto counts = null;
             String source = "NONE";
             if (d.dbName() != null) {
@@ -129,9 +131,10 @@ public class ServicesStatusService {
                     d.name(),
                     d.displayName(),
                     probe.status(),
-                    null,            // version — not collected in 1a (no metrics endpoint open yet)
-                    null,            // uptimeSeconds — same
-                    null,            // image — Phase 1b k8s resolver can add this cheaply
+                    null,            // version — not collected (no metrics endpoint open; not in 1b scope)
+                    meta.map(m -> m.startedAt() == null ? null
+                            : java.time.Duration.between(m.startedAt(), now).toSeconds()).orElse(null),
+                    meta.map(com.finmates.admin.services.resolver.PodMetadata::image).orElse(null),
                     counts,
                     source,
                     now,

@@ -1,0 +1,18 @@
+# Binds the fm-admin-watcher ServiceAccount to the pods-reader Role.
+# Both live in namespace `dev`; RoleBinding is namespace-scoped.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fm-admin-watcher-pods-reader
+  namespace: dev
+  labels:
+    app: admin-panel
+    purpose: pod-resolver
+subjects:
+  - kind: ServiceAccount
+    name: fm-admin-watcher
+    namespace: dev
+roleRef:
+  kind: Role
+  name: pods-reader
+  apiGroup: rbac.authorization.k8s.io

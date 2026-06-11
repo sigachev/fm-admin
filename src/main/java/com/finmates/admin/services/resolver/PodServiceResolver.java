@@ -31,4 +31,15 @@ public interface PodServiceResolver {
      *         or an empty set if unknown
      */
     Set<String> getPodIpsForService(String serviceName);
+
+    /**
+     * @return image + startedAt for a representative pod of the given service,
+     *         or empty if the service has no resolved pod (Phase 1a NoOp default,
+     *         or service absent from the live k8s API list). Drives the
+     *         {@code image} / {@code uptimeSeconds} fields on
+     *         {@link com.finmates.admin.dto.services.ServiceStatusDto}.
+     */
+    default Optional<PodMetadata> getMetadataForService(String serviceName) {
+        return Optional.empty();
+    }
 }
