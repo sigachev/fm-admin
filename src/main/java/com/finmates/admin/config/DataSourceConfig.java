@@ -55,6 +55,17 @@ public class DataSourceConfig {
         return new RestTemplate(factory);
     }
 
+    // ── healthRestTemplate: short-timeout client for the services-status dashboard ──
+    // Must be injected via @Qualifier("healthRestTemplate") — never the shared bean
+    // above, or one hung service stalls the whole /api/admin/services/status response.
+    @Bean(name = "healthRestTemplate")
+    public RestTemplate healthRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(1000);
+        factory.setReadTimeout(2000);
+        return new RestTemplate(factory);
+    }
+
     // ── EntityManagerFactoryBuilder (manual — HibernateJpaAutoConfiguration excluded) ──
 
     @Bean
