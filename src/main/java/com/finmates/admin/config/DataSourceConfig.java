@@ -61,8 +61,8 @@ public class DataSourceConfig {
     @Bean(name = "healthRestTemplate")
     public RestTemplate healthRestTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(1000);
-        factory.setReadTimeout(2000);
+        factory.setConnectTimeout(2000);
+        factory.setReadTimeout(5000);
         return new RestTemplate(factory);
     }
 
