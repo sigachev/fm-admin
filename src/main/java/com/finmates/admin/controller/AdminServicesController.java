@@ -1,7 +1,9 @@
 package com.finmates.admin.controller;
 
+import com.finmates.admin.dto.services.ClusterAlertsResponseDto;
 import com.finmates.admin.dto.services.DbConnectionsResponseDto;
 import com.finmates.admin.dto.services.ServiceStatusDto;
+import com.finmates.admin.service.ClusterAlertsService;
 import com.finmates.admin.service.ServicesStatusService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +28,12 @@ import java.util.List;
 public class AdminServicesController {
 
     private final ServicesStatusService servicesStatusService;
+    private final ClusterAlertsService clusterAlertsService;
 
-    public AdminServicesController(ServicesStatusService servicesStatusService) {
+    public AdminServicesController(ServicesStatusService servicesStatusService,
+                                   ClusterAlertsService clusterAlertsService) {
         this.servicesStatusService = servicesStatusService;
+        this.clusterAlertsService = clusterAlertsService;
     }
 
     @GetMapping("/status")
@@ -39,5 +44,10 @@ public class AdminServicesController {
     @GetMapping("/db-connections")
     public DbConnectionsResponseDto getDbConnections() {
         return servicesStatusService.getDbConnections();
+    }
+
+    @GetMapping("/cluster-alerts")
+    public ClusterAlertsResponseDto getClusterAlerts() {
+        return clusterAlertsService.getClusterAlerts();
     }
 }
