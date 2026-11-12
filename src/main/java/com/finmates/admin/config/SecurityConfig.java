@@ -11,12 +11,16 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.client.RestTemplate;
+import com.finmates.admin.security.AzpAllowlistValidator;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -40,6 +44,14 @@ public class SecurityConfig {
 
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
+
+    /** Comma-separated azp allowlist. See CLAUDE.md "JWT azp guard". */
+    @Value("${finmates.security.azp.allowed:finmates-app}")
+    private List<String> azpAllowed;
+
+    /** false = report-only (log, never reject) for staged rollout. */
+    @Value("${finmates.security.azp.enforce:true}")
+    private boolean azpEnforce;
 
     /**
      * Custom JwtDecoder that trusts self-signed certs (auth.finmates.com).
@@ -75,7 +87,19 @@ public class SecurityConfig {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
                 .restOperations(restTemplate)
                 .build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuerUri));
+        return withTokenValidators(decoder, issuerUri, azpAllowed, azpEnforce);
+    }
+
+    /**
+     * Applies the full validator chain to a decoder: the default validators (timestamps) + issuer
+     * check, plus the azp allowlist guard. Static so the wiring can be tested without a JWKS endpoint.
+     */
+    static NimbusJwtDecoder withTokenValidators(NimbusJwtDecoder decoder, String issuerUri,
+                                                List<String> azpAllowed, boolean azpEnforce) {
+        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(issuerUri),
+                new AzpAllowlistValidator(azpAllowed, azpEnforce));
+        decoder.setJwtValidator(validator);
         return decoder;
     }
 

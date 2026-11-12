@@ -314,6 +314,16 @@ keycloak.admin.password=${KEYCLOAK_ADMIN_PASSWORD}
 ```
 Dev profile uses self-signed cert at `auth.finmates.com` — `KeycloakAdminProvider` initializes a trust-all `resteasyClient()` to bypass PKIX validation.
 
+## JWT azp guard
+
+`com.finmates.admin.security.AzpAllowlistValidator` rejects access tokens whose `azp` (authorized party) claim is not on an allowlist, so tokens minted for third-party / dynamically registered (DCR / MCP) Keycloak clients cannot be replayed against this API. Canonical source and contract: `docs/adr/azp-guard` in the monorepo root (copy verbatim; only the package line differs).
+
+- Properties: `finmates.security.azp.allowed` (comma list, env `FINMATES_SECURITY_AZP_ALLOWED`, default `finmates-app`) and `finmates.security.azp.enforce` (env `FINMATES_SECURITY_AZP_ENFORCE`, default `true`). Defaults live in the base config.
+- Wiring: `SecurityConfig.withTokenValidators(...)` wraps `JwtValidators.createDefaultWithIssuer(issuerUri)` (issuer + timestamps, unchanged) and `AzpAllowlistValidator` in a `DelegatingOAuth2TokenValidator`. The `jwtDecoder()` bean calls it; the trust-all JWKS fetch is untouched. A rejection is an `InvalidBearerTokenException`, i.e. the normal 401 `invalid_token`.
+- Missing `azp` is rejected when enforcing. Spring validates any presented Bearer token even on `permitAll` paths, so a disallowed-azp token also gets 401 on public endpoints.
+- Rollout: first deploy with `FINMATES_SECURITY_AZP_ENFORCE=false` (report-only; logs `azp guard (report-only)` once per distinct azp), watch logs, then remove the override. Keycloak DCR must stay closed until every service enforces.
+- Tests: `AzpAllowlistValidatorTest`, `SecurityConfigAzpWiringTest` (run with `-Dtest=AzpAllowlistValidatorTest,SecurityConfigAzpWiringTest`).
+
 ## Known Gotchas
 
 - **`source_ticker_config.symbol` is mixed-case** — Hyperliquid stores perpetual k-tokens as lowercase-k (`kSHIB`, `kDOGS`, `kFLOKI`). The `asset` table always stores symbols uppercase. When toggling a ticker, always use case-insensitive lookup: `findBySourceIdAndSymbolIgnoreCase`. When joining ticker symbols to the asset table (e.g., for source filter), call `.toUpperCase()` on the ticker symbol before matching. **Never** use `symbol.toUpperCase()` before the ticker lookup itself — it converts `kSHIB` → `KSHIB` which won't find the DB row.
