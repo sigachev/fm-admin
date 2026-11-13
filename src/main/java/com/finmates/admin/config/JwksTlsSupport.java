@@ -46,9 +46,35 @@ public final class JwksTlsSupport {
     public static RestTemplate verifiedRestTemplate(String trustStorePath, String trustStorePassword,
                                                     String trustStoreType)
             throws GeneralSecurityException, IOException {
-        if (trustStorePath == null || trustStorePath.isBlank()) {
+        SSLContext sslContext = customTrustStoreSslContext(trustStorePath, trustStorePassword, trustStoreType);
+        if (sslContext == null) {
             // Default HttpsURLConnection behaviour: default truststore + HTTPS host name verification.
             return new RestTemplate(new SimpleClientHttpRequestFactory());
+        }
+
+        // Only the socket factory is replaced; the default HostnameVerifier (host name verification) stays.
+        return new RestTemplate(new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection conn, String method) throws IOException {
+                if (conn instanceof HttpsURLConnection httpsConn) {
+                    httpsConn.setSSLSocketFactory(sslContext.getSocketFactory());
+                }
+                super.prepareConnection(conn, method);
+            }
+        });
+    }
+
+    /**
+     * Shared by every TLS client that talks to Keycloak (JWKS fetch, Keycloak admin client): returns
+     * {@code null} when {@code trustStorePath} is blank (= use the default JVM truststore), otherwise an
+     * {@link SSLContext} that trusts ONLY the given truststore (chain still verified; host name
+     * verification is left to the HTTP client and stays on). A set-but-unreadable path throws.
+     */
+    public static SSLContext customTrustStoreSslContext(String trustStorePath, String trustStorePassword,
+                                                        String trustStoreType)
+            throws GeneralSecurityException, IOException {
+        if (trustStorePath == null || trustStorePath.isBlank()) {
+            return null;
         }
         String type = (trustStoreType == null || trustStoreType.isBlank())
                 ? DEFAULT_TRUST_STORE_TYPE : trustStoreType.trim();
@@ -66,19 +92,9 @@ public final class JwksTlsSupport {
         tmf.init(trustStore);
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, tmf.getTrustManagers(), new SecureRandom());
-        log.info("JWKS fetch uses custom truststore {} (type {}); certificate chain and host name are verified",
+        log.info("Keycloak TLS client uses custom truststore {} (type {}); certificate chain and host name are verified",
                 path, type);
-
-        // Only the socket factory is replaced; the default HostnameVerifier (host name verification) stays.
-        return new RestTemplate(new SimpleClientHttpRequestFactory() {
-            @Override
-            protected void prepareConnection(HttpURLConnection conn, String method) throws IOException {
-                if (conn instanceof HttpsURLConnection httpsConn) {
-                    httpsConn.setSSLSocketFactory(sslContext.getSocketFactory());
-                }
-                super.prepareConnection(conn, method);
-            }
-        });
+        return sslContext;
     }
 
     /**
