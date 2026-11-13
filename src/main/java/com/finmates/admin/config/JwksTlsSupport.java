@@ -10,6 +10,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.Enumeration;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -25,10 +26,12 @@ import org.springframework.web.client.RestTemplate;
 /**
  * Builds the {@link RestTemplate} the {@code JwtDecoder} uses to fetch the Keycloak JWKS.
  *
- * <p>Outside the {@code dev} profile the TLS certificate and host name are always verified:
- * either against the default JVM truststore, or - when {@code finmates.security.jwks.trust-store}
- * is set - against that truststore only (still with full chain + host name verification; this is
- * NOT trust-all). The trust-all variant exists solely for the {@code dev} profile.
+ * <p>Outside the {@code dev} profile the TLS certificate and host name are always verified against the
+ * default JVM truststore. In-cluster the Keycloak self-signed certificate is pinned by importing it into
+ * the image's cacerts (Dockerfile). The optional {@code finmates.security.jwks.trust-store} is ADDITIVE:
+ * the effective trust is the default JVM trust anchors PLUS the certificate entries of that store (never
+ * only the store); chain + host name verification stay on. This is NOT trust-all. The trust-all variant
+ * exists solely for the {@code dev} profile.
  */
 public final class JwksTlsSupport {
 
@@ -41,7 +44,7 @@ public final class JwksTlsSupport {
 
     /**
      * Verified TLS (chain + host name). {@code trustStorePath} blank = default JVM truststore;
-     * otherwise a truststore loaded from that file replaces the default one for this client.
+     * otherwise the certificates of that file are added to the default JVM trust anchors.
      */
     public static RestTemplate verifiedRestTemplate(String trustStorePath, String trustStorePassword,
                                                     String trustStoreType)
@@ -67,8 +70,9 @@ public final class JwksTlsSupport {
     /**
      * Shared by every TLS client that talks to Keycloak (JWKS fetch, Keycloak admin client): returns
      * {@code null} when {@code trustStorePath} is blank (= use the default JVM truststore), otherwise an
-     * {@link SSLContext} that trusts ONLY the given truststore (chain still verified; host name
-     * verification is left to the HTTP client and stays on). A set-but-unreadable path throws.
+     * {@link SSLContext} that trusts the default JVM trust anchors PLUS the certificate entries of the
+     * given truststore (chain still verified; host name verification is left to the HTTP client and stays
+     * on). A set-but-unreadable path throws.
      */
     public static SSLContext customTrustStoreSslContext(String trustStorePath, String trustStorePassword,
                                                         String trustStoreType)
@@ -88,13 +92,40 @@ public final class JwksTlsSupport {
         try (InputStream in = Files.newInputStream(path)) {
             trustStore.load(in, password);
         }
+        KeyStore merged = mergedTrustStore(trustStore);
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        tmf.init(trustStore);
+        tmf.init(merged);
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, tmf.getTrustManagers(), new SecureRandom());
-        log.info("Keycloak TLS client uses custom truststore {} (type {}); certificate chain and host name are verified",
-                path, type);
+        log.info("Keycloak TLS client uses additional truststore {} (type {}) on top of the default JVM trust anchors; "
+                + "certificate chain and host name are verified", path, type);
         return sslContext;
+    }
+
+    /**
+     * Default JVM trust anchors plus every certificate entry of {@code custom} (aliases prefixed
+     * {@code default-} / {@code custom-}). Key entries of the custom store are ignored.
+     */
+    static KeyStore mergedTrustStore(KeyStore custom) throws GeneralSecurityException, IOException {
+        TrustManagerFactory def = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        def.init((KeyStore) null);
+        KeyStore merged = KeyStore.getInstance(KeyStore.getDefaultType());
+        merged.load(null, null);
+        int i = 0;
+        for (TrustManager tm : def.getTrustManagers()) {
+            if (tm instanceof X509TrustManager x509) {
+                for (X509Certificate c : x509.getAcceptedIssuers()) {
+                    merged.setCertificateEntry("default-" + i++, c);
+                }
+            }
+        }
+        for (Enumeration<String> a = custom.aliases(); a.hasMoreElements();) {
+            String alias = a.nextElement();
+            if (custom.isCertificateEntry(alias)) {
+                merged.setCertificateEntry("custom-" + alias, custom.getCertificate(alias));
+            }
+        }
+        return merged;
     }
 
     /**

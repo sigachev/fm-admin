@@ -18,12 +18,14 @@ import java.security.GeneralSecurityException;
  * Used for admin operations like password reset, user management, etc.
  *
  * <p><b>TLS:</b> this client carries the Keycloak ADMIN username/password, so the server certificate
- * chain AND host name are verified in EVERY profile (no dev exception). {@code auth.finmates.com}
- * serves the public GlobalSign AlphaSSL wildcard, so the default JVM truststore is correct. Optional
- * escape hatch (same properties as the JWKS fetch): {@code finmates.security.jwks.trust-store},
- * {@code .trust-store-password}, {@code .trust-store-type} - when set, that truststore replaces the
- * default one for this client (chain + host name are still verified; this is NOT trust-all). A set but
- * unreadable truststore path fails the boot.
+ * chain AND host name are verified in EVERY profile (no dev exception). In-cluster, pods reach
+ * Keycloak's own TLS port, which serves a self-signed certificate; the image imports exactly that
+ * certificate into the JVM cacerts (Dockerfile, cert/self-signed/finmates.cert), so the default JVM
+ * truststore (default anchors + the pinned cert) is correct. Optional escape hatch (same properties as
+ * the JWKS fetch): {@code finmates.security.jwks.trust-store}, {@code .trust-store-password},
+ * {@code .trust-store-type} - when set, its certificates are ADDED to the default JVM trust anchors
+ * (chain + host name are still verified; this is NOT trust-all). A set but unreadable truststore path
+ * fails the boot.
  */
 @Slf4j
 @Component
@@ -83,7 +85,7 @@ public class KeycloakAdminProvider {
 
     /**
      * RESTEasy client with normal TLS verification: certificate chain + host name. A {@code null}
-     * {@code sslContext} means the default JVM truststore. Never installs a trust-all manager or a
+     * {@code sslContext} means the default JVM truststore (which includes the pinned Keycloak cert in the image). Never installs a trust-all manager or a
      * permissive host name verifier.
      */
     static ResteasyClient verifiedResteasyClient(SSLContext sslContext) {

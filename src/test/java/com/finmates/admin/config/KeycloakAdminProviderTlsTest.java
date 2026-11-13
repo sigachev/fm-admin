@@ -27,8 +27,9 @@ import okhttp3.tls.HeldCertificate;
 /**
  * Proves the Keycloak admin client (which carries the admin username/password) verifies TLS in every
  * profile: a Keycloak served over HTTPS with a self-signed certificate is rejected by the default
- * truststore, accepted only when that exact certificate is configured via
- * {@code finmates.security.jwks.trust-store*}, and still rejected on a host name mismatch.
+ * truststore, accepted only when that exact certificate is added via
+ * {@code finmates.security.jwks.trust-store*} (additive to the JVM default anchors), and still rejected on a host
+ * name mismatch.
  * The client is built through {@link KeycloakAdminProvider#newKeycloakAdminClient()} exactly as in production.
  */
 class KeycloakAdminProviderTlsTest {
