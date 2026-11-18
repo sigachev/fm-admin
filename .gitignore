@@ -49,3 +49,6 @@ graphify-out/
 .claude/settings.json
 .claude/settings.local.json
 .claude/projects/
+# JVM crash logs and graphify caches (tidy-up 2026-11-18)
+replay_pid*.log
+src/**/graphify-out/
