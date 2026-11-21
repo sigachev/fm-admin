@@ -18,7 +18,7 @@ Admin-only backend for managing users, portfolios, trades, news, and token/asset
 
 **Data ownership model:**
 - `main` DB — read-only on `users`, read-write on `admin_news` + `audit_log` (V11/V15 in finmates-main)
-- `crypto` DB — read-only on `portfolios`, `trades`, `positions` (with admin delete overrides)
+- ~~`crypto` DB~~ — no longer used (2026-11-21): finmates-crypto V27 "verified leaderboard drop virtual trading" dropped `portfolios` / `portfolio_trades` / `portfolio_positions`, so fm-admin's portfolio/trade/position admin and the crypto datasource were removed.
 - `crypto_data` DB — read-write on `asset`, `news_article`, `news_source`; admin news is **mirrored** here via `AdminNewsService` for public display (best-effort, non-blocking)
 
 **Do NOT modify user, portfolio, or trade schemas directly.** All schema changes in those databases must be made in their respective services (`finmates-main`, `finmates-crypto`, `fm-crypto-aggregator`).
@@ -92,12 +92,11 @@ API docs:   http://localhost:8090/v3/api-docs
 
 ## Databases
 
-Connects to THREE databases simultaneously with mixed ownership:
+Connects to TWO databases (main + crypto_data). The crypto datasource was removed 2026-11-21 (virtual trading tables dropped by finmates-crypto V27):
 
 | Datasource | DB | Ownership | Tables used | DDL Mode |
 |------------|-----|-----------|-------------|----------|
 | `mainDataSource` (@Primary) | `main` (finmates-main) | Read-only users; Read-write news + audit_log | `users`, `admin_news`, `audit_log` | `ddl-auto=update` (dev) / `validate` (k8s) |
-| `cryptoDataSource` | `crypto` (finmates-crypto) | Read-only (except admin deletes) | `portfolios`, `portfolio_trades`, `portfolio_positions` | `ddl-auto=none` |
 | `aggregatorDataSource` | `crypto_data` (fm-crypto-aggregator) | Read-write (owns asset + news tables) | `asset`, `news_article`, `news_source`, `asset_price_*` | `ddl-auto=none` |
 
 ### Database conventions
@@ -150,22 +149,14 @@ Public paths: `/actuator/health`, `/v3/api-docs/**`, `/swagger-ui/**`, `/ui/**`
 ### User Management
 ```
 GET    /api/admin/users                   paginated user list (?search=)
-GET    /api/admin/users/{id}              user detail + portfolio summaries from crypto DB
+GET    /api/admin/users/{id}              user detail
 PUT    /api/admin/users/{id}/enabled      toggle isActive { "enabled": true/false }
 DELETE /api/admin/users/{id}              soft delete (sets deleted_at, isActive=false)
 PUT    /api/admin/users/{id}/password     reset user password via Keycloak { "password": "..." }
 ```
 
 ### Portfolio & Trade Management
-```
-GET    /api/admin/portfolios              all portfolios (?userId=)
-GET    /api/admin/portfolios/{id}         portfolio detail with positions + tradeCount
-DELETE /api/admin/portfolios/{id}/positions/{symbol}  delete a position row
-POST   /api/admin/portfolios/{id}/reset   reset cashBalance=initialBalance, delete all positions
-
-GET    /api/admin/trades                  all trades (?portfolioId= &symbol= &userId=)
-GET    /api/admin/positions               all positions (?symbol= &userId=)
-```
+Removed 2026-11-21 with virtual trading (finmates-crypto V27 dropped the tables).
 
 ### News Management (mirrored to public feed)
 ```
@@ -223,7 +214,7 @@ GET    /api/admin/tokens/sources/available   available tokens from a source (?so
 
 ### Platform Statistics
 ```
-GET    /api/admin/stats                   platform-wide counts (users, portfolios, trades, assets)
+GET    /api/admin/stats                   platform-wide counts (users, news, tokens)
 ```
 
 ### User Ban Management (Prompt 6b — proxies to finmates-main /api/internal/users/*)
@@ -382,6 +373,9 @@ The `JwtDecoder` fetches the Keycloak JWKS (`https://auth.finmates.com/realms/fi
 
 - **Nullable `is_active` column in users table** — the `is_active` column in the main DB's `users` table can be NULL for legacy records. `AdminUser.isActive` is a `Boolean` wrapper (not primitive `boolean`) to allow null. When mapping to DTOs, always null-check: `dto.setEnabled(u.getIsActive() != null ? u.getIsActive() : false)` to avoid `NullPointerException` on unboxing.
 
+- **Admin dashboard 403 on 2026-11-21 = dropped tables.** `GET /api/admin/stats` ran `select count(*) from portfolios`
+  after finmates-crypto V27 dropped virtual trading; the crash surfaced as 403 (see next item). When another service drops
+  or renames a table fm-admin reads, remove or remap the entity here in the same release.
 - **(Fixed 2026-11-21: `/error` is now permitAll, so server errors return 500.)** Historical: **A 403 on `/api/admin/**` could mask a 500** — `SecurityConfig` ends with `.anyRequest().denyAll()`. When a controller throws an unhandled exception (e.g., Hibernate `column does not exist` after a schema migration in another service), Spring forwards to `/error`, which doesn't match any `permitAll`/`hasRole` rule and is denied → response is **403**, not 500. If admin endpoints suddenly start 403'ing for a confirmed admin user, check fm-admin server logs for SQL/Hibernate errors before assuming a security misconfig. Root cause once: `AdminPortfolio` still mapped `cash_balance`/`initial_balance` after V10 of finmates-crypto dropped them in the shared-wallet refactor — fixed by removing those columns from `AdminPortfolio`, `AdminPortfolioDto`, `AdminPortfolioSummaryDto`, and the corresponding service mappers; `resetPortfolio` now only deletes positions (cash reset is owned by finmates-main's wallet endpoint).
 
 - **Keycloak cert / JWKS TLS** - the JwtDecoder verifies TLS outside `dev` (see "JWKS TLS verification (JwtDecoder)"). Symptom if the pod cannot validate the cert: `JwtDecoderInitializationException` / `PKIX path building failed` / 401 on every request. In-cluster first check the startup line `Keycloak pinned certificate: ... trustedByJvm=true` (WARN `NOT trusted` = the image lacks the Dockerfile cacerts import; ERROR `MISMATCH` = Keycloak's cert rotated, update `cert/self-signed/finmates.cert` and rebuild). For EXTERNAL clients a missing intermediate in the ingress TLS secret is the usual cause. Fix the trust, never trust-all. The optional `finmates.security.jwks.trust-store*` is only an ADDITIVE escape hatch. Only the `dev` profile uses a trust-all decoder.

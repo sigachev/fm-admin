@@ -15,9 +15,6 @@ public class AdminStatsDto {
     private long activeUsers;
     private long newUsersToday;
     private long newUsersThisWeek;
-    private long totalPortfolios;
-    private long totalTrades;
-    private long totalPositions;
     private long totalNewsArticles;
     private long totalTokens;
     private long activeTokens;
