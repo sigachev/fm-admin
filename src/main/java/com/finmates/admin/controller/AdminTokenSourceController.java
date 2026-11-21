@@ -30,6 +30,7 @@ import java.util.Map;
 public class AdminTokenSourceController {
 
     private final AdminSourceTickerService service;
+    private final com.finmates.admin.service.AggregatorClient aggregatorClient;
 
     @Data
     public static class SourceStatusDto {
@@ -49,13 +50,11 @@ public class AdminTokenSourceController {
     @GetMapping("/health")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SourceStatusDto>> getSourceHealth() {
-        return ResponseEntity.ok(List.of(
-            new SourceStatusDto("hyperliquid", 1, true),
-            new SourceStatusDto("kraken", 2, true),
-            new SourceStatusDto("coinbase", 3, true),
-            new SourceStatusDto("okx", 4, true),
-            new SourceStatusDto("gemini", 5, true)
-        ));
+        // Real connection state from the aggregator. (This used to return a hardcoded list of five sources, all
+        // "connected", so the Tokens page said 5/5 even with exchanges down.) Empty if the aggregator is unreachable.
+        return ResponseEntity.ok(aggregatorClient.getSourceHealth().stream()
+                .map(s -> new SourceStatusDto(s.getSourceId(), s.getPriority(), s.isConnected()))
+                .toList());
     }
 
     @Operation(summary = "Get all source ticker configurations",
@@ -76,7 +75,7 @@ public class AdminTokenSourceController {
     }
 
     @Operation(summary = "Toggle ticker sync for a source",
-               description = "Enable or disable a specific ticker. Changes take effect on next source reconnect (~30s).")
+               description = "Enable or disable a specific ticker. The aggregator is reloaded after the change, so the exchange resubscribes within seconds.")
     @PatchMapping("/{sourceId}/{symbol}/enabled")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SourceTickerConfigDto> toggleTicker(

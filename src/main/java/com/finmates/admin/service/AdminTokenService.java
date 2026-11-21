@@ -38,38 +38,120 @@ public class AdminTokenService {
     private final AdminAssetRepository assetRepository;
     private final AggregatorSourceTickerConfigRepository sourceTickerRepo;
     private final AggregatorClient aggregatorClient;
+    private final TokenStatusService tokenStatusService;
+    private final AggregatorReloader aggregatorReloader;
 
     /**
-     * List all tokens with optional search and source filter.
-     * When sourceId is provided, only returns tokens that have an enabled ticker for that source.
+     * List tokens with optional search, exchange filter and status filter, each with its computed live status.
+     * When {@code sourceId} is set, only tokens with an enabled feed on that exchange are returned. When {@code status}
+     * is set the status is computed for every matching token and the page is cut in memory (about a thousand rows).
      */
-    public Page<AdminTokenDto> listTokens(String search, String sourceId, Pageable pageable) {
-        Page<AdminAsset> assets;
+    public Page<AdminTokenDto> listTokens(String search, String sourceId, String status, Pageable pageable) {
+        TokenStatusService.Live live = tokenStatusService.live();
+        TokenStatusService.Feeds feeds = tokenStatusService.feeds();
 
+        if (status == null || status.isBlank()) {
+            Page<AdminTokenDto> page = findAssets(search, sourceId, pageable).map(this::toDto);
+            tokenStatusService.enrich(page.getContent(), live, feeds);
+            return page;
+        }
+
+        Set<String> wanted = java.util.Arrays.stream(status.split(","))
+                .map(String::trim).map(String::toUpperCase).collect(Collectors.toSet());
+        Pageable all = org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE, pageable.getSort());
+        List<AdminTokenDto> rows = findAssets(search, sourceId, all).map(this::toDto).getContent();
+        rows = new ArrayList<>(rows);
+        tokenStatusService.enrich(rows, live, feeds);
+        List<AdminTokenDto> filtered = rows.stream().filter(t -> wanted.contains(t.getStatus())).toList();
+        int from = (int) Math.min((long) pageable.getPageNumber() * pageable.getPageSize(), filtered.size());
+        int to = Math.min(from + pageable.getPageSize(), filtered.size());
+        return new org.springframework.data.domain.PageImpl<>(filtered.subList(from, to), pageable, filtered.size());
+    }
+
+    private Page<AdminAsset> findAssets(String search, String sourceId, Pageable pageable) {
+        boolean hasSearch = search != null && !search.isBlank();
         if (sourceId != null && !sourceId.isBlank()) {
-            // Collect enabled symbols for this source (normalised to uppercase to match asset table)
+            // Enabled symbols for this source, upper-cased to match the asset table
             Set<String> symbols = sourceTickerRepo.findEnabledBySourceId(sourceId)
                     .stream()
                     .map(t -> t.getSymbol().toUpperCase())
                     .collect(Collectors.toSet());
-
             if (symbols.isEmpty()) {
                 return Page.empty(pageable);
             }
-
-            if (search != null && !search.isBlank()) {
-                assets = assetRepository.findBySymbolInAndSearchTerm(symbols, search.trim(), pageable);
-            } else {
-                assets = assetRepository.findBySymbolIn(symbols, pageable);
-            }
-        } else if (search != null && !search.isBlank()) {
-            String s = search.trim();
-            assets = assetRepository.findBySymbolContainingIgnoreCaseOrNameContainingIgnoreCase(s, s, pageable);
-        } else {
-            assets = assetRepository.findAll(pageable);
+            return hasSearch
+                    ? assetRepository.findBySymbolInAndSearchTerm(symbols, search.trim(), pageable)
+                    : assetRepository.findBySymbolIn(symbols, pageable);
         }
+        if (hasSearch) {
+            String q = search.trim();
+            return assetRepository.findBySymbolContainingIgnoreCaseOrNameContainingIgnoreCase(q, q, pageable);
+        }
+        return assetRepository.findAll(pageable);
+    }
 
-        return assets.map(this::toDto);
+    /**
+     * Header data for the Tokens page: counts per status, the real exchange connection state, duplicate pairs and
+     * tokens subscribed for nothing.
+     */
+    public com.finmates.admin.dto.TokenOverviewDto overview() {
+        TokenStatusService.Live live = tokenStatusService.live();
+        TokenStatusService.Feeds feeds = tokenStatusService.feeds();
+        List<AdminTokenDto> all = new ArrayList<>(assetRepository.findAll().stream().map(this::toDto).toList());
+        tokenStatusService.enrich(all, live, feeds);
+
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        for (TokenStatus st : TokenStatus.values()) {
+            byStatus.put(st.name(), 0L);
+        }
+        all.forEach(t -> byStatus.merge(t.getStatus(), 1L, Long::sum));
+        long notTrackedWithFeeds = all.stream()
+                .filter(t -> !Boolean.TRUE.equals(t.getIsActive()) && !t.getFeeds().isEmpty()).count();
+
+        return new com.finmates.admin.dto.TokenOverviewDto(all.size(), byStatus, live.sources(),
+                live.prices() != null, tokenStatusService.duplicatePairs(), notTrackedWithFeeds);
+    }
+
+    /**
+     * Turn price tracking on or off. Turning it ON for a token with no enabled feed also enables every exchange that
+     * lists it, so one click gives a working price; the result says which feeds were switched on. The aggregator is
+     * reloaded after commit, so the change applies without a restart.
+     */
+    public com.finmates.admin.dto.TrackingResultDto setTracking(String symbol, boolean tracked) {
+        AdminAsset asset = assetRepository.findBySymbolIgnoreCase(symbol)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Token not found: " + symbol));
+        asset.setIsActive(tracked);
+        asset.setUpdatedAt(Instant.now());
+        assetRepository.save(asset);
+
+        List<String> autoEnabled = new ArrayList<>();
+        if (tracked) {
+            List<AggregatorSourceTickerConfig> rows = sourceTickerRepo.findBySymbolIgnoreCase(symbol);
+            if (rows.stream().noneMatch(AggregatorSourceTickerConfig::isEnabled)) {
+                for (AggregatorSourceTickerConfig r : rows) {
+                    r.setEnabled(true);
+                    r.setUpdatedAt(Instant.now());
+                    autoEnabled.add(r.getSourceId());
+                }
+                sourceTickerRepo.saveAll(rows);
+            }
+        }
+        log.info("Tracking {} for {} (auto-enabled feeds: {})", tracked ? "ON" : "OFF", symbol, autoEnabled);
+        aggregatorReloader.reloadAfterCommit("tracking " + (tracked ? "on" : "off") + " for " + symbol);
+
+        AdminTokenDto dto = toDto(asset);
+        // Reflect the change immediately; live price fields fill in once the aggregator has a tick.
+        TokenStatusService.Feeds feeds = tokenStatusService.feeds();
+        if (!autoEnabled.isEmpty()) {
+            List<String> enabledNow = new ArrayList<>(feeds.enabled().getOrDefault(symbol.toUpperCase(), List.of()));
+            autoEnabled.stream().filter(f -> !enabledNow.contains(f)).forEach(enabledNow::add);
+            java.util.Collections.sort(enabledNow);
+            Map<String, List<String>> enabled = new java.util.TreeMap<>(feeds.enabled());
+            enabled.put(symbol.toUpperCase(), enabledNow);
+            feeds = new TokenStatusService.Feeds(enabled, feeds.available());
+        }
+        tokenStatusService.enrich(List.of(dto), tokenStatusService.live(), feeds);
+        return new com.finmates.admin.dto.TrackingResultDto(dto, autoEnabled);
     }
 
     /**
@@ -78,7 +160,9 @@ public class AdminTokenService {
     public AdminTokenDto getToken(String symbol) {
         AdminAsset asset = assetRepository.findBySymbolIgnoreCase(symbol)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Token not found: " + symbol));
-        return toDto(asset);
+        AdminTokenDto dto = toDto(asset);
+        tokenStatusService.enrich(List.of(dto), tokenStatusService.live(), tokenStatusService.feeds());
+        return dto;
     }
 
     /**
@@ -109,12 +193,7 @@ public class AdminTokenService {
         AdminAsset saved = assetRepository.save(asset);
         log.info("Created token: symbol={}, name={}", saved.getSymbol(), saved.getName());
 
-        // Reload aggregator asset list so the new token starts streaming immediately
-        try {
-            aggregatorClient.reloadAssets();
-        } catch (Exception e) {
-            log.warn("Created token {} but failed to reload aggregator assets: {}", saved.getSymbol(), e.getMessage());
-        }
+        aggregatorReloader.reloadAfterCommit("token created");
 
         return toDto(saved);
     }
@@ -167,12 +246,7 @@ public class AdminTokenService {
 
         log.info("Toggled token status: symbol={}, isActive={}", symbol, updated.getIsActive());
 
-        // Reload aggregator so status change takes effect immediately
-        try {
-            aggregatorClient.reloadAssets();
-        } catch (Exception e) {
-            log.warn("Toggled token {} but failed to reload aggregator assets: {}", symbol, e.getMessage());
-        }
+        aggregatorReloader.reloadAfterCommit("tracking toggled");
 
         return toDto(updated);
     }
@@ -277,11 +351,7 @@ public class AdminTokenService {
         List<String> upper = symbols.stream().map(String::toUpperCase).toList();
         int updated = assetRepository.setActiveBySymbols(upper, active);
         log.info("bulkSetActive: set is_active={} for {} symbols ({} updated)", active, upper.size(), updated);
-        try {
-            aggregatorClient.reloadAssets();
-        } catch (Exception e) {
-            log.warn("bulkSetActive: reloadAssets failed: {}", e.getMessage());
-        }
+        aggregatorReloader.reloadAfterCommit("bulk set active");
         return updated;
     }
 
@@ -368,11 +438,7 @@ public class AdminTokenService {
         log.info("autoEnableAllTickers: enabled={}, alreadyEnabled={}, activeAssets={}, discovered={}",
                 toEnable.size(), alreadyEnabled, activeSymbols.size(), discovered);
 
-        try {
-            aggregatorClient.reloadAssets();
-        } catch (Exception e) {
-            log.warn("autoEnableAllTickers: reloadAssets failed: {}", e.getMessage());
-        }
+        aggregatorReloader.reloadAfterCommit("auto-enable tickers");
 
         return Map.of("enabled", toEnable.size(), "alreadyEnabled", alreadyEnabled, "discovered", discovered);
     }

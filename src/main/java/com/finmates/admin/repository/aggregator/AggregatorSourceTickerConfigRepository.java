@@ -21,4 +21,7 @@ public interface AggregatorSourceTickerConfigRepository
 
     @Query("SELECT t FROM AggregatorSourceTickerConfig t WHERE t.enabled = true")
     List<AggregatorSourceTickerConfig> findAllEnabled();
+
+    /** Every exchange row for a token (enabled or not). Case-insensitive: Hyperliquid stores kSHIB etc. */
+    List<AggregatorSourceTickerConfig> findBySymbolIgnoreCase(String symbol);
 }

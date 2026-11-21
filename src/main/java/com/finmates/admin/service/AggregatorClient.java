@@ -87,6 +87,32 @@ public class AggregatorClient {
     }
 
     /**
+     * Current consolidated price per symbol from the aggregator ({@code GET /api/v1/prices/current}, public, read-only).
+     *
+     * @return symbol (upper-case) -> live price; {@code null} if the aggregator could not be reached, so callers can
+     *         tell "no prices" from "don't know"
+     */
+    public java.util.Map<String, com.finmates.admin.dto.LivePriceDto> getCurrentPrices() {
+        try {
+            ResponseEntity<java.util.Map<String, com.finmates.admin.dto.LivePriceDto>> response = restTemplate.exchange(
+                    aggregatorUrl + "/api/v1/prices/current",
+                    HttpMethod.GET,
+                    new HttpEntity<>(internalHeaders()),
+                    new org.springframework.core.ParameterizedTypeReference<
+                            java.util.Map<String, com.finmates.admin.dto.LivePriceDto>>() { });
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                return null;
+            }
+            java.util.Map<String, com.finmates.admin.dto.LivePriceDto> out = new java.util.HashMap<>();
+            response.getBody().forEach((k, v) -> out.put(k.toUpperCase(), v));
+            return out;
+        } catch (Exception e) {
+            log.warn("Failed to fetch current prices from aggregator: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Get available tokens per source from the aggregator.
      * Calls `/internal/v1/discovery/tokens`.
      *
