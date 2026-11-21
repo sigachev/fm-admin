@@ -1,4 +1,4 @@
-package com.finmates.admin.dto.services;
+package com.finmates.admin.monitoring.dto;
 
 /**
  * One pg_stat_activity grouping row exposed on the cluster-wide DB-connection

@@ -1,4 +1,4 @@
-package com.finmates.admin.services.resolver;
+package com.finmates.admin.monitoring.resolver;
 
 import java.util.Optional;
 import java.util.Set;
@@ -15,8 +15,7 @@ import java.util.Set;
  * returns {@link Optional#empty()} and the dashboard surfaces the raw IP with
  * a null service name rather than fabricating an attribution.
  *
- * <p>The {@code NoOpPodServiceResolver} ships in Phase 1a; the live k8s-API
- * implementation is added in Phase 1b alongside the pods-reader RBAC.
+ * <p>Implemented by {@link K8sPodServiceResolver} (needs the pods-reader RBAC).
  */
 public interface PodServiceResolver {
 
@@ -34,10 +33,10 @@ public interface PodServiceResolver {
 
     /**
      * @return image + startedAt for a representative pod of the given service,
-     *         or empty if the service has no resolved pod (Phase 1a NoOp default,
-     *         or service absent from the live k8s API list). Drives the
+     *         or empty if the service has no resolved pod (service absent from the live k8s API list,
+     *         or the API unreachable). Drives the
      *         {@code image} / {@code uptimeSeconds} fields on
-     *         {@link com.finmates.admin.dto.services.ServiceStatusDto}.
+     *         {@link com.finmates.admin.monitoring.dto.ServiceStatusDto}.
      */
     default Optional<PodMetadata> getMetadataForService(String serviceName) {
         return Optional.empty();

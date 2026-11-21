@@ -1,4 +1,4 @@
-package com.finmates.admin.services.registry;
+package com.finmates.admin.monitoring.registry;
 
 /**
  * How a service's liveness is probed by the services dashboard.

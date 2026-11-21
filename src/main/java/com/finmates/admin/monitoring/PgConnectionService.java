@@ -1,4 +1,4 @@
-package com.finmates.admin.service;
+package com.finmates.admin.monitoring;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

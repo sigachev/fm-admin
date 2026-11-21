@@ -1,8 +1,8 @@
-package com.finmates.admin.client;
+package com.finmates.admin.monitoring;
 
-import com.finmates.admin.dto.services.HealthStatus;
-import com.finmates.admin.services.registry.HealthType;
-import com.finmates.admin.services.registry.ServiceDescriptor;
+import com.finmates.admin.monitoring.dto.HealthStatus;
+import com.finmates.admin.monitoring.registry.HealthType;
+import com.finmates.admin.monitoring.registry.ServiceDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;

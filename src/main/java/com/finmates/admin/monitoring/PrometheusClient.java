@@ -1,4 +1,4 @@
-package com.finmates.admin.client;
+package com.finmates.admin.monitoring;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.slf4j.Logger;
@@ -113,27 +113,6 @@ public class PrometheusClient {
         return out;
     }
 
-    /**
-     * Probe Prometheus reachability cheaply (no series payload) for the rule-existence
-     * audit check. Returns true iff {@code /api/v1/rules} contains an alert rule named
-     * {@code ruleName}.
-     */
-    public boolean ruleExists(String ruleName) {
-        if (!isConfigured()) return false;
-        try {
-            RulesResponse body = exchange(prometheusUrl + "/api/v1/rules", RulesResponse.class, "ruleExists");
-            if (body == null || body.data == null || body.data.groups == null) return false;
-            for (RuleGroup g : body.data.groups) {
-                if (g.rules == null) continue;
-                for (Rule r : g.rules) {
-                    if (ruleName.equals(r.name)) return true;
-                }
-            }
-        } catch (Exception e) {
-            log.debug("ruleExists({}) lookup failed: {}", ruleName, e.toString());
-        }
-        return false;
-    }
 
     private <T> T exchange(String url, Class<T> clazz, String op) {
         try {
@@ -211,29 +190,6 @@ public class PrometheusClient {
         public LinkedHashMap<String, String> annotations;
         public String state;
         public Instant activeAt;
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class RulesResponse {
-        public String status;
-        public RulesData data;
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class RulesData {
-        public List<RuleGroup> groups;
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class RuleGroup {
-        public String name;
-        public List<Rule> rules;
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class Rule {
-        public String name;
-        public String type;
     }
 
     public static class PrometheusClientException extends RuntimeException {

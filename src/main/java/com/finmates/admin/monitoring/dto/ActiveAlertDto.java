@@ -1,4 +1,4 @@
-package com.finmates.admin.dto.services;
+package com.finmates.admin.monitoring.dto;
 
 import java.time.Instant;
 

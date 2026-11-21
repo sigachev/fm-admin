@@ -1,4 +1,4 @@
-package com.finmates.admin.dto.services;
+package com.finmates.admin.monitoring.dto;
 
 /**
  * Headline counts for the cluster-wide DB-connection panel.

@@ -1,11 +1,10 @@
-package com.finmates.admin.service;
+package com.finmates.admin.monitoring;
 
-import com.finmates.admin.client.PrometheusClient;
-import com.finmates.admin.client.PrometheusClient.AlertEnvelope;
-import com.finmates.admin.client.PrometheusClient.InstantSample;
-import com.finmates.admin.dto.services.ActiveAlertDto;
-import com.finmates.admin.dto.services.ClusterAlertsResponseDto;
-import com.finmates.admin.dto.services.DiskGaugeDto;
+import com.finmates.admin.monitoring.PrometheusClient.AlertEnvelope;
+import com.finmates.admin.monitoring.PrometheusClient.InstantSample;
+import com.finmates.admin.monitoring.dto.ActiveAlertDto;
+import com.finmates.admin.monitoring.dto.ClusterAlertsResponseDto;
+import com.finmates.admin.monitoring.dto.DiskGaugeDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Composes {@code GET /api/admin/services/cluster-alerts} from three Prometheus
@@ -59,20 +57,14 @@ public class ClusterAlertsService {
             "node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|fuse.lxcfs\"}";
 
     private final PrometheusClient prometheus;
-    private final AtomicReference<TimedHolder<ClusterAlertsResponseDto>> cache = new AtomicReference<>();
+    private final TtlCache<ClusterAlertsResponseDto> cache = new TtlCache<>(CACHE_TTL);
 
     public ClusterAlertsService(PrometheusClient prometheus) {
         this.prometheus = prometheus;
     }
 
     public ClusterAlertsResponseDto getClusterAlerts() {
-        TimedHolder<ClusterAlertsResponseDto> cached = cache.get();
-        if (cached != null && cached.isFresh()) {
-            return cached.value;
-        }
-        ClusterAlertsResponseDto built = build();
-        cache.set(new TimedHolder<>(built, Instant.now().plus(CACHE_TTL)));
-        return built;
+        return cache.get(this::build);
     }
 
     private ClusterAlertsResponseDto build() {
@@ -186,23 +178,5 @@ public class ClusterAlertsService {
             case "info" -> 1;
             default -> 0;
         };
-    }
-
-    /** Test-only hook to drop the cache. */
-    void invalidateCacheForTest() {
-        cache.set(null);
-    }
-
-    /** Local TTL cell — same shape as the one in {@link ServicesStatusService}. */
-    private static final class TimedHolder<T> {
-        final T value;
-        final Instant expiresAt;
-        TimedHolder(T value, Instant expiresAt) {
-            this.value = value;
-            this.expiresAt = expiresAt;
-        }
-        boolean isFresh() {
-            return Instant.now().isBefore(expiresAt);
-        }
     }
 }
