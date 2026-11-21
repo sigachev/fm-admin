@@ -56,7 +56,7 @@ actorJwt.getSubject() → keycloakId → DB lookup → actorUserId
 ### Adding a New Token/Asset Feature
 - Token data lives in `crypto_data.asset` table
 - If syncing with external sources, use `AggregatorClient` to call `fm-crypto-aggregator` endpoints
-- Internal calls use `X-Service-Name: fm-admin` header (see `AggregatorClient.java`)
+- Calls go to the aggregator's `/internal/v1/**` with `X-Internal-Secret` (same `fm-admin.internal-secret`) plus `X-Service-Name: fm-admin` (see `AggregatorClient.internalHeaders()`). The aggregator has NO public write endpoints any more; never call `/api/v1/discovery/*` (removed).
 - Always handle source unavailability gracefully — external services may be down
 
 ### News Mirroring Pattern
@@ -258,9 +258,11 @@ Tracks how each data source names/maps tokens via `AggregatorSourceTickerConfig`
 ### Discovery via Aggregator Client
 `AggregatorClient` makes internal HTTP calls to `fm-crypto-aggregator` (configured via `aggregator.url`):
 ```java
-// Health check: GET http://localhost:8088/api/v1/sources/health
-// Available tokens: GET http://localhost:8088/api/v1/discovery/available
-// These endpoints use X-Service-Name: fm-admin header for internal routing
+// Source status:    GET  http://localhost:8088/api/v1/prices/sources/status   (public, read-only)
+// Discovery:        GET  /internal/v1/discovery/available|tokens|tokens/all
+//                   POST /internal/v1/discovery/seed|reload-assets
+// Metadata:         POST /internal/v1/assets/metadata/fetch
+// /internal calls send X-Internal-Secret (INTERNAL_SHARED_SECRET) — the aggregator's gate checks it.
 ```
 
 ## Admin News Mirroring to Public Feed
