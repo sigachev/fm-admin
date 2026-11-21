@@ -27,6 +27,7 @@ public class AdminSourceTickerService {
     private final AggregatorSourceTickerConfigRepository repo;
     private final AdminAssetRepository assetRepository;
     private final AggregatorClient aggregatorClient;
+    private final AggregatorReloader aggregatorReloader;
 
     private final AtomicBoolean discovering = new AtomicBoolean(false);
     private volatile Instant discoverStartedAt;
@@ -60,7 +61,10 @@ public class AdminSourceTickerService {
             .map(config -> {
                 config.setEnabled(enabled);
                 config.setUpdatedAt(Instant.now());
-                return repo.save(config);
+                AggregatorSourceTickerConfig saved = repo.save(config);
+                // The exchange adapter re-reads its tickers and resubscribes - no restart needed.
+                aggregatorReloader.reloadAfterCommit("feed " + sourceId + "/" + symbol + " " + (enabled ? "on" : "off"));
+                return saved;
             })
             .map(this::toDto)
             .orElseThrow(() -> new IllegalArgumentException(

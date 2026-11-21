@@ -39,8 +39,34 @@ public class AdminTokenController {
     public Page<AdminTokenDto> listTokens(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sourceId,
+            @RequestParam(required = false) String status,
             @PageableDefault(size = 20) Pageable pageable) {
-        return tokenService.listTokens(search, sourceId, pageable);
+        return tokenService.listTokens(search, sourceId, status, pageable);
+    }
+
+    /**
+     * Page header: token counts per status (LIVE / DEGRADED / STALE / NO_FEED / NOT_TRACKED / UNKNOWN), the real
+     * connection state of every exchange, duplicate exchange pairs, and tokens subscribed with tracking off.
+     */
+    @GetMapping("/overview")
+    public com.finmates.admin.dto.TokenOverviewDto overview() {
+        return tokenService.overview();
+    }
+
+    /**
+     * Turn price tracking on/off: {@code {"tracked": true|false}}. Turning it on for a token with no enabled feed
+     * also enables every exchange that lists it; {@code autoEnabledFeeds} in the response says which. Applies without
+     * an aggregator restart.
+     */
+    @PatchMapping("/{symbol}/tracking")
+    public com.finmates.admin.dto.TrackingResultDto setTracking(
+            @PathVariable String symbol,
+            @RequestBody com.finmates.admin.dto.TrackingRequest body) {
+        if (body == null || body.tracked() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Body must be {\"tracked\": true|false}");
+        }
+        return tokenService.setTracking(symbol, body.tracked());
     }
 
     /**

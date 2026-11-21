@@ -193,9 +193,26 @@ POST   /api/admin/tokens/discovery/add/bulk  bulk add tokens { "symbols": [...] 
 POST   /api/admin/tokens/auto-enable-tickers?discover=false  enable all source_ticker_config rows for active assets; discover=true seeds first (30+ s)
 ```
 
+### Token status model (computed — `TokenStatusService`)
+Each token has ONE computed status instead of three independent flags:
+`NOT_TRACKED` (asset.is_active off) → `NO_FEED` (tracked, no enabled source_ticker_config row) → `UNKNOWN`
+(aggregator unreachable) → `STALE` (no price, or aggregator feedStatus STALE) → `DEGRADED` (aggregator DEGRADED)
+→ `LIVE`. Inputs: is_active, enabled feeds, and the aggregator's `GET /api/v1/prices/current` (cached 5 s).
+```
+GET    /api/admin/tokens?status=NO_FEED,STALE   list filter by computed status (cut in memory, ~1k rows)
+GET    /api/admin/tokens/overview                counts per status, REAL source connection state,
+                                                 duplicatePairs (one exchange pair enabled for 2+ tokens),
+                                                 notTrackedWithFeeds
+PATCH  /api/admin/tokens/{symbol}/tracking       {"tracked": bool}; ON with no enabled feed auto-enables every
+                                                 exchange that lists it (returned in autoEnabledFeeds)
+```
+Every token/feed change calls `AggregatorReloader.reloadAfterCommit()` — DEBOUNCED (2 s, `aggregator.reload-debounce-ms`: bulk feed toggles coalesce into one reload) and fired AFTER the transaction
+commits (it used to fire before commit, so the aggregator could read old rows). The aggregator applies it without a
+restart (sources resubscribe, deactivated symbols are dropped).
+
 ### Token Source & Ticker Configuration
 ```
-GET    /api/admin/tokens/sources/health      source connection status + priority
+GET    /api/admin/tokens/sources/health      REAL source connection status from the aggregator (was hardcoded 5x connected)
 GET    /api/admin/tokens/sources             ticker mappings for all sources, grouped by sourceId
 GET    /api/admin/tokens/sources/{sourceId}  ticker configs for one source (SourceTickerConfig[])
 POST   /api/admin/tokens/sources/discover    trigger async token discovery (returns 202)
