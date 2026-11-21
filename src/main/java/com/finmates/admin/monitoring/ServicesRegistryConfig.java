@@ -1,7 +1,7 @@
-package com.finmates.admin.config;
+package com.finmates.admin.monitoring;
 
-import com.finmates.admin.services.registry.HealthType;
-import com.finmates.admin.services.registry.ServiceDescriptor;
+import com.finmates.admin.monitoring.registry.HealthType;
+import com.finmates.admin.monitoring.registry.ServiceDescriptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

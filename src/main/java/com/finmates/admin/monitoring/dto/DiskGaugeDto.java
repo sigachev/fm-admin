@@ -1,4 +1,4 @@
-package com.finmates.admin.dto.services;
+package com.finmates.admin.monitoring.dto;
 
 /**
  * Per-node, per-mountpoint disk-usage row for the Cluster Alerts &amp; Storage panel.

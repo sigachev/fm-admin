@@ -1,4 +1,4 @@
-package com.finmates.admin.dto.services;
+package com.finmates.admin.monitoring.dto;
 
 /**
  * Per-service PostgreSQL connection counts derived from
@@ -11,7 +11,7 @@ package com.finmates.admin.dto.services;
  * <p>For {@code crypto-aggregator}, counts include the R2DBC pool
  * ({@code application_name=r2dbc-postgresql}) plus the JDBC Flyway startup
  * connection. This mixing is intentional — see
- * {@link com.finmates.admin.config.ServicesRegistryConfig} javadoc.
+ * {@link com.finmates.admin.monitoring.ServicesRegistryConfig} javadoc.
  */
 public record DbConnectionCountsDto(
         int active,

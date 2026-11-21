@@ -1,16 +1,15 @@
-package com.finmates.admin.service;
+package com.finmates.admin.monitoring;
 
-import com.finmates.admin.client.ServicesHealthClient;
-import com.finmates.admin.client.ServicesHealthClient.HealthProbeResult;
-import com.finmates.admin.dto.services.DbConnectionCountsDto;
-import com.finmates.admin.dto.services.DbConnectionRowDto;
-import com.finmates.admin.dto.services.DbConnectionsResponseDto;
-import com.finmates.admin.dto.services.DbConnectionsSummaryDto;
-import com.finmates.admin.dto.services.HealthStatus;
-import com.finmates.admin.dto.services.ServiceStatusDto;
-import com.finmates.admin.service.PgConnectionService.PgActivityRow;
-import com.finmates.admin.services.registry.ServiceDescriptor;
-import com.finmates.admin.services.resolver.PodServiceResolver;
+import com.finmates.admin.monitoring.ServicesHealthClient.HealthProbeResult;
+import com.finmates.admin.monitoring.dto.DbConnectionCountsDto;
+import com.finmates.admin.monitoring.dto.DbConnectionRowDto;
+import com.finmates.admin.monitoring.dto.DbConnectionsResponseDto;
+import com.finmates.admin.monitoring.dto.DbConnectionsSummaryDto;
+import com.finmates.admin.monitoring.dto.HealthStatus;
+import com.finmates.admin.monitoring.dto.ServiceStatusDto;
+import com.finmates.admin.monitoring.PgConnectionService.PgActivityRow;
+import com.finmates.admin.monitoring.registry.ServiceDescriptor;
+import com.finmates.admin.monitoring.resolver.PodServiceResolver;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +19,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,13 +28,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Aggregates {@link ServiceStatusDto} and the cluster-wide DB-connections
  * response.
  *
- * <p>Cache: a hand-rolled {@link AtomicReference} TTL holder per endpoint.
+ * <p>Cache: one {@link TtlCache} per endpoint.
  * Frontend polls ~10 s; cache TTL ~10 s. Spec called for Caffeine; for two
  * cached values, adding {@code spring-boot-starter-cache} + caffeine just for
  * this is heavier than the inline alternative. If a third caching consumer
@@ -72,8 +69,8 @@ public class ServicesStatusService {
     private final PgConnectionService pgConnectionService;
     private final PodServiceResolver podResolver;
 
-    private final AtomicReference<TimedHolder<List<ServiceStatusDto>>> statusCache = new AtomicReference<>();
-    private final AtomicReference<TimedHolder<DbConnectionsResponseDto>> connectionsCache = new AtomicReference<>();
+    private final TtlCache<List<ServiceStatusDto>> statusCache = new TtlCache<>(CACHE_TTL);
+    private final TtlCache<DbConnectionsResponseDto> connectionsCache = new TtlCache<>(CACHE_TTL);
 
     /**
      * Bounded pool for parallel health probes. Sized to the registry size (capped at
@@ -113,13 +110,7 @@ public class ServicesStatusService {
     // ── /api/admin/services/status ───────────────────────────────────────────
 
     public List<ServiceStatusDto> getServicesStatus() {
-        TimedHolder<List<ServiceStatusDto>> cached = statusCache.get();
-        if (cached != null && cached.isFresh()) {
-            return cached.value;
-        }
-        List<ServiceStatusDto> built = buildServicesStatus();
-        statusCache.set(new TimedHolder<>(built, Instant.now().plus(CACHE_TTL)));
-        return built;
+        return statusCache.get(this::buildServicesStatus);
     }
 
     private List<ServiceStatusDto> buildServicesStatus() {
@@ -197,7 +188,7 @@ public class ServicesStatusService {
                                                       Map<String, Map<String, int[]>> byDbThenIp,
                                                       Instant now) {
         HealthProbeResult probe = healthClient.probe(d);
-        java.util.Optional<com.finmates.admin.services.resolver.PodMetadata> meta =
+        java.util.Optional<com.finmates.admin.monitoring.resolver.PodMetadata> meta =
                 podResolver.getMetadataForService(d.name());
         DbConnectionCountsDto counts = null;
         String source = "NONE";
@@ -226,7 +217,7 @@ public class ServicesStatusService {
                 null,            // version — not collected (no metrics endpoint open; not in 1b scope)
                 meta.map(m -> m.startedAt() == null ? null
                         : java.time.Duration.between(m.startedAt(), now).toSeconds()).orElse(null),
-                meta.map(com.finmates.admin.services.resolver.PodMetadata::image).orElse(null),
+                meta.map(com.finmates.admin.monitoring.resolver.PodMetadata::image).orElse(null),
                 counts,
                 source,
                 now,
@@ -237,13 +228,7 @@ public class ServicesStatusService {
     // ── /api/admin/services/db-connections ───────────────────────────────────
 
     public DbConnectionsResponseDto getDbConnections() {
-        TimedHolder<DbConnectionsResponseDto> cached = connectionsCache.get();
-        if (cached != null && cached.isFresh()) {
-            return cached.value;
-        }
-        DbConnectionsResponseDto built = buildDbConnections();
-        connectionsCache.set(new TimedHolder<>(built, Instant.now().plus(CACHE_TTL)));
-        return built;
+        return connectionsCache.get(this::buildDbConnections);
     }
 
     private DbConnectionsResponseDto buildDbConnections() {
@@ -293,19 +278,6 @@ public class ServicesStatusService {
         }
     }
 
-    /** Hand-rolled TTL cell. */
-    private static final class TimedHolder<T> {
-        final T value;
-        final Instant expiresAt;
-        TimedHolder(T value, Instant expiresAt) {
-            this.value = value;
-            this.expiresAt = expiresAt;
-        }
-        boolean isFresh() {
-            return Instant.now().isBefore(expiresAt);
-        }
-    }
-
     /** Builds daemon threads with a stable name prefix so they're identifiable in thread dumps. */
     private static ThreadFactory daemonThreadFactory(String namePrefix) {
         AtomicInteger counter = new AtomicInteger(0);
@@ -314,12 +286,5 @@ public class ServicesStatusService {
             t.setDaemon(true);
             return t;
         };
-    }
-
-    /** Test-only hook to drop both caches (kept package-private intentionally). */
-    void invalidateCachesForTest() {
-        statusCache.set(null);
-        connectionsCache.set(null);
-        log.debug("Services dashboard caches invalidated");
     }
 }

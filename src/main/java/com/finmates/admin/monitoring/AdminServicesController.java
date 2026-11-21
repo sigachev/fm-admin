@@ -1,10 +1,8 @@
-package com.finmates.admin.controller;
+package com.finmates.admin.monitoring;
 
-import com.finmates.admin.dto.services.ClusterAlertsResponseDto;
-import com.finmates.admin.dto.services.DbConnectionsResponseDto;
-import com.finmates.admin.dto.services.ServiceStatusDto;
-import com.finmates.admin.service.ClusterAlertsService;
-import com.finmates.admin.service.ServicesStatusService;
+import com.finmates.admin.monitoring.dto.ClusterAlertsResponseDto;
+import com.finmates.admin.monitoring.dto.DbConnectionsResponseDto;
+import com.finmates.admin.monitoring.dto.ServiceStatusDto;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

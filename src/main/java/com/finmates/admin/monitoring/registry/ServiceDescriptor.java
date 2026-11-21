@@ -1,4 +1,4 @@
-package com.finmates.admin.services.registry;
+package com.finmates.admin.monitoring.registry;
 
 /**
  * Static description of a service rendered on the admin services dashboard.
@@ -12,7 +12,7 @@ package com.finmates.admin.services.registry;
  * @param dbName      PostgreSQL {@code datname} this service connects to, or {@code null}
  *                    if it does not own a DB connection group (e.g. keycloak, redis,
  *                    admin-panel which spans three DBs)
- * @param healthUrl   URL used by {@link com.finmates.admin.client.ServicesHealthClient};
+ * @param healthUrl   URL used by {@link com.finmates.admin.monitoring.ServicesHealthClient};
  *                    null when {@link #healthType} == {@link HealthType#NONE} or
  *                    {@link HealthType#REDIS_PING}
  * @param healthType  how to interpret the response

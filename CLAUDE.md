@@ -438,6 +438,12 @@ dto/
   PostContentResponse, CommentContentResponse — Social content responses
   SourceTickerConfigDto, SourceStatusDto, SourceTokensDto, AvailableTokenDto
 
+monitoring/                — Services dashboard (/api/admin/services/status|db-connections|cluster-alerts):
+  AdminServicesController, ServicesStatusService, ClusterAlertsService, PgConnectionService,
+  PrometheusClient, ServicesHealthClient, ServicesRegistryConfig, TtlCache,
+  dto/ (ServiceStatusDto, DbConnections*, ClusterAlertsResponseDto, ...), registry/ (ServiceDescriptor, HealthType),
+  resolver/ (K8sPodServiceResolver: pod IP -> service via the k8s API; degrades to "unresolved" outside a pod)
+
 controller/
   AdminUser*              — CRUD + ban management (ban/unban/ban-history/ban-status)
   AdminReportController   — Report list + resolve + dismiss (proxies to fm-social)

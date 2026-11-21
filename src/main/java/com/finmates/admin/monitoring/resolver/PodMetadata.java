@@ -1,4 +1,4 @@
-package com.finmates.admin.services.resolver;
+package com.finmates.admin.monitoring.resolver;
 
 import java.time.Instant;
 
@@ -6,7 +6,7 @@ import java.time.Instant;
  * Minimal metadata for a representative pod of a given service, scoped to what
  * the services dashboard renders today: image (the deployed image reference)
  * and {@code startedAt} (drives the {@code uptimeSeconds} field on
- * {@link com.finmates.admin.dto.services.ServiceStatusDto}).
+ * {@link com.finmates.admin.monitoring.dto.ServiceStatusDto}).
  *
  * <p>Captured by the live {@link K8sPodServiceResolver} from the pod list
  * response — {@code items[].spec.containers[0].image} and

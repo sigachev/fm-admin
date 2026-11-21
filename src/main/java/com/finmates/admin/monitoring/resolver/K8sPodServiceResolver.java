@@ -1,13 +1,12 @@
-package com.finmates.admin.services.resolver;
+package com.finmates.admin.monitoring.resolver;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.finmates.admin.services.registry.ServiceDescriptor;
+import com.finmates.admin.monitoring.registry.ServiceDescriptor;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -49,8 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>{@link PostConstruct} initialisation NEVER throws. If SSLContext or
  *       HttpClient setup fails, the bean comes up with an empty map and the
  *       {@code @Scheduled} loop keeps retrying — the dashboard endpoints serve
- *       null serviceName / null metadata until recovery, exactly like the
- *       Phase-1a NoOp default.</li>
+ *       null serviceName / null metadata until recovery.</li>
  *   <li>Each refresh tick is wrapped in try/catch. On failure the previous
  *       last-good map is preserved; "stale is better than empty". The first
  *       successful tick atomically replaces the map.</li>
@@ -58,13 +56,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *       future scheduled invocations).</li>
  * </ul>
  *
- * <p>Marked {@link Primary} so it wins the bean injection in
- * {@link com.finmates.admin.service.ServicesStatusService} over the existing
- * {@link NoOpPodServiceResolver}; the NoOp remains available for tests + as a
- * documented fallback.
+ * <p>The only {@link PodServiceResolver}: outside a pod (local dev) it simply never resolves anything.
  */
 @Component
-@Primary
 public class K8sPodServiceResolver implements PodServiceResolver {
 
     private static final Logger log = LoggerFactory.getLogger(K8sPodServiceResolver.class);
