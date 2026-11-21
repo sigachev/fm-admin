@@ -28,12 +28,29 @@ public class AggregatorClient {
 
     private final String aggregatorUrl;
     private final RestTemplate restTemplate;
+    private final String internalSecret;
 
     public AggregatorClient(
             @Value("${aggregator.url:http://localhost:8088}") String aggregatorUrl,
+            @Value("${fm-admin.internal-secret:}") String internalSecret,
             RestTemplate restTemplate) {
         this.aggregatorUrl = aggregatorUrl;
+        this.internalSecret = internalSecret;
         this.restTemplate = restTemplate;
+    }
+
+    /**
+     * Headers for every aggregator call. {@code X-Internal-Secret} is what the aggregator's /internal/** gate
+     * checks (same INTERNAL_SHARED_SECRET as fm-social / finmates-main); {@code X-Service-Name} is kept for its
+     * transition-mode log only.
+     */
+    private HttpHeaders internalHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Service-Name", "fm-admin");
+        if (internalSecret != null && !internalSecret.isBlank()) {
+            headers.set("X-Internal-Secret", internalSecret);
+        }
+        return headers;
     }
 
     /**
@@ -45,8 +62,7 @@ public class AggregatorClient {
     public List<SourceStatusDto> getSourceHealth() {
         try {
             String url = aggregatorUrl + "/api/v1/prices/sources/status";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -72,15 +88,14 @@ public class AggregatorClient {
 
     /**
      * Get available tokens per source from the aggregator.
-     * Calls `/api/v1/discovery/tokens`.
+     * Calls `/internal/v1/discovery/tokens`.
      *
      * @return List of source token availability; empty list if call fails
      */
     public List<SourceTokensDto> getAvailableTokensPerSource() {
         try {
-            String url = aggregatorUrl + "/api/v1/discovery/tokens";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            String url = aggregatorUrl + "/internal/v1/discovery/tokens";
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -106,15 +121,14 @@ public class AggregatorClient {
 
     /**
      * Get all unique available tokens across all sources.
-     * Calls `/api/v1/discovery/tokens/all`.
+     * Calls `/internal/v1/discovery/tokens/all`.
      *
      * @return List of all available tokens with source info; empty list if call fails
      */
     public List<AvailableTokenDto> getAllAvailableTokens() {
         try {
-            String url = aggregatorUrl + "/api/v1/discovery/tokens/all";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            String url = aggregatorUrl + "/internal/v1/discovery/tokens/all";
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -141,13 +155,12 @@ public class AggregatorClient {
     /**
      * Trigger asset reload in the aggregator.
      * Picks up newly-added tokens from the asset table.
-     * Calls `POST /api/v1/discovery/reload-assets`.
+     * Calls `POST /internal/v1/discovery/reload-assets`.
      */
     public void reloadAssets() {
         try {
-            String url = aggregatorUrl + "/api/v1/discovery/reload-assets";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            String url = aggregatorUrl + "/internal/v1/discovery/reload-assets";
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -172,15 +185,14 @@ public class AggregatorClient {
 
     /**
      * Discover and seed all available tokens from exchange REST APIs.
-     * Calls `POST /api/v1/discovery/seed`.
+     * Calls `POST /internal/v1/discovery/seed`.
      * Returns a map of sourceId -> count of newly inserted rows.
      * Note: This operation can be long-running (30+ seconds) depending on exchange API response times.
      */
     public java.util.Map<String, Integer> discoverAndSeedTokens() {
         try {
-            String url = aggregatorUrl + "/api/v1/discovery/seed";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            String url = aggregatorUrl + "/internal/v1/discovery/seed";
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -218,8 +230,7 @@ public class AggregatorClient {
     public java.util.Map<String, Integer> fetchMetadataFromOkx() {
         try {
             String url = aggregatorUrl + "/internal/v1/assets/metadata/fetch";
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
@@ -245,7 +256,7 @@ public class AggregatorClient {
 
     /**
      * Get available tokens from a specific source for browsing/importing.
-     * Calls `GET /api/v1/discovery/available?sourceId={sourceId}&onlyNew={onlyNew}`.
+     * Calls `GET /internal/v1/discovery/available?sourceId={sourceId}&onlyNew={onlyNew}`.
      *
      * @param sourceId source ID (kraken, coinbase, okx, gemini, hyperliquid)
      * @param onlyNew if true, only return tokens not yet in our config
@@ -253,9 +264,8 @@ public class AggregatorClient {
      */
     public List<SourceAvailableTokenDto> getAvailableTokens(String sourceId, boolean onlyNew) {
         try {
-            String url = aggregatorUrl + "/api/v1/discovery/available?sourceId=" + sourceId + "&onlyNew=" + onlyNew;
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Service-Name", "fm-admin");
+            String url = aggregatorUrl + "/internal/v1/discovery/available?sourceId=" + sourceId + "&onlyNew=" + onlyNew;
+            HttpHeaders headers = internalHeaders();
 
             HttpEntity<String> request = new HttpEntity<>(headers);
 
