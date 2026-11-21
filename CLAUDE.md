@@ -206,7 +206,7 @@ GET    /api/admin/tokens/overview                counts per status, REAL source 
 PATCH  /api/admin/tokens/{symbol}/tracking       {"tracked": bool}; ON with no enabled feed auto-enables every
                                                  exchange that lists it (returned in autoEnabledFeeds)
 ```
-Every token/feed change calls `AggregatorReloader.reloadAfterCommit()` — the reload fires AFTER the transaction
+Every token/feed change calls `AggregatorReloader.reloadAfterCommit()` — DEBOUNCED (2 s, `aggregator.reload-debounce-ms`: bulk feed toggles coalesce into one reload) and fired AFTER the transaction
 commits (it used to fire before commit, so the aggregator could read old rows). The aggregator applies it without a
 restart (sources resubscribe, deactivated symbols are dropped).
 
