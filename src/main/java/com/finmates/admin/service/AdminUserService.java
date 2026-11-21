@@ -1,10 +1,8 @@
 package com.finmates.admin.service;
 
-import com.finmates.admin.dto.AdminPortfolioSummaryDto;
 import com.finmates.admin.dto.AdminUserDetailDto;
 import com.finmates.admin.dto.AdminUserDto;
 import com.finmates.admin.entity.main.AdminUser;
-import com.finmates.admin.repository.crypto.AdminPortfolioRepository;
 import com.finmates.admin.repository.main.AdminUserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -24,7 +21,6 @@ import java.util.List;
 public class AdminUserService {
 
     private final AdminUserRepository userRepository;
-    private final AdminPortfolioRepository portfolioRepository;
 
     public Page<AdminUserDto> listUsers(String search, Pageable pageable) {
         if (search != null && !search.isBlank()) {
@@ -39,15 +35,8 @@ public class AdminUserService {
         AdminUser user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id));
 
-        List<AdminPortfolioSummaryDto> portfolios = portfolioRepository.findByUserId(id).stream()
-                .map(p -> new AdminPortfolioSummaryDto(
-                        p.getId(), p.getName(), p.getType(),
-                        p.isDefault(), p.isPublic()))
-                .toList();
-
         AdminUserDetailDto dto = new AdminUserDetailDto();
         copyFields(user, dto);
-        dto.setPortfolios(portfolios);
         return dto;
     }
 

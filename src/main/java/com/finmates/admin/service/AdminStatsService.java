@@ -1,9 +1,6 @@
 package com.finmates.admin.service;
 
 import com.finmates.admin.dto.AdminStatsDto;
-import com.finmates.admin.repository.crypto.AdminPortfolioRepository;
-import com.finmates.admin.repository.crypto.AdminPositionRepository;
-import com.finmates.admin.repository.crypto.AdminTradeRepository;
 import com.finmates.admin.repository.main.AdminNewsRepository;
 import com.finmates.admin.repository.main.AdminUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +14,6 @@ import java.time.temporal.ChronoUnit;
 public class AdminStatsService {
 
     private final AdminUserRepository userRepository;
-    private final AdminPortfolioRepository portfolioRepository;
-    private final AdminTradeRepository tradeRepository;
-    private final AdminPositionRepository positionRepository;
     private final AdminNewsRepository newsRepository;
     private final AdminTokenService tokenService;
 
@@ -31,9 +25,6 @@ public class AdminStatsService {
         long totalUsers = userRepository.count();
         long newUsersToday = userRepository.countByCreatedAtAfter(startOfToday);
         long newUsersThisWeek = userRepository.countByCreatedAtAfter(startOfWeek);
-        long totalPortfolios = portfolioRepository.count();
-        long totalTrades = tradeRepository.count();
-        long totalPositions = positionRepository.count();
         long totalNewsArticles = newsRepository.count();
         long totalTokens = tokenService.getTotalTokenCount();
         long activeTokens = tokenService.getActiveTokenCount();
@@ -43,9 +34,6 @@ public class AdminStatsService {
                 totalUsers,          // activeUsers: same as totalUsers (no separate active count query)
                 newUsersToday,
                 newUsersThisWeek,
-                totalPortfolios,
-                totalTrades,
-                totalPositions,
                 totalNewsArticles,
                 totalTokens,
                 activeTokens

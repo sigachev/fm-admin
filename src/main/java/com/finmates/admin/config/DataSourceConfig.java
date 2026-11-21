@@ -41,7 +41,6 @@ public class DataSourceConfig {
 
     // ── DataSource references for graceful shutdown ────────────────────────────────
     private DataSource mainDataSourceRef;
-    private DataSource cryptoDataSourceRef;
     private DataSource aggregatorDataSourceRef;
 
     // ── RestTemplate for HTTP calls (e.g., AggregatorClient) ────────────────────────
@@ -102,7 +101,7 @@ public class DataSourceConfig {
         // Override ddl-auto for the main datasource only.
         // Dev: 'update' so Hibernate auto-creates Hibernate-owned tables (e.g. audit_log) — finmates-main
         //      follows the same convention; main DB has no Flyway. Other profiles: 'validate'.
-        // Crypto and aggregator EMFs continue to use the builder's default 'none'.
+        // The aggregator EMF continues to use the builder's default 'none'.
         String ddlAuto = mainDdlAuto();
         logger.info("[MainEntityManagerFactory] hibernate.hbm2ddl.auto = " + ddlAuto + " (profile: " + activeProfile + ")");
         return builder
@@ -120,33 +119,6 @@ public class DataSourceConfig {
         return new JpaTransactionManager(emf);
     }
 
-    // ── Crypto datasource (crypto DB — portfolios, trades, positions) ─────────────────
-
-    @Bean("cryptoDataSource")
-    @ConfigurationProperties(prefix = "datasource.crypto")
-    public DataSource cryptoDataSource() {
-        HikariDataSource ds = DataSourceBuilder.create().type(HikariDataSource.class).build();
-        applyAdminPoolSizing(ds, "Crypto");
-        cryptoDataSourceRef = ds;
-        return ds;
-    }
-
-    @Bean("cryptoEntityManagerFactory")
-    public LocalContainerEntityManagerFactoryBean cryptoEntityManagerFactory(
-            EntityManagerFactoryBuilder builder,
-            @Qualifier("cryptoDataSource") DataSource dataSource) {
-        return builder
-                .dataSource(dataSource)
-                .packages("com.finmates.admin.entity.crypto")
-                .persistenceUnit("crypto")
-                .build();
-    }
-
-    @Bean("cryptoTransactionManager")
-    public PlatformTransactionManager cryptoTransactionManager(
-            @Qualifier("cryptoEntityManagerFactory") EntityManagerFactory emf) {
-        return new JpaTransactionManager(emf);
-    }
 
     // ── Aggregator datasource (crypto_data DB — assets, prices) ─────────────────
 
@@ -221,15 +193,6 @@ public class DataSourceConfig {
             }
         }
 
-        // Close crypto datasource
-        if (cryptoDataSourceRef instanceof com.zaxxer.hikari.HikariDataSource) {
-            try {
-                ((com.zaxxer.hikari.HikariDataSource) cryptoDataSourceRef).close();
-                logger.info("[CryptoDataSource] HikariCP pool closed successfully");
-            } catch (Exception e) {
-                logger.warning("[CryptoDataSource] Error closing pool: " + e.getMessage());
-            }
-        }
 
         // Close aggregator datasource
         if (aggregatorDataSourceRef instanceof com.zaxxer.hikari.HikariDataSource) {
