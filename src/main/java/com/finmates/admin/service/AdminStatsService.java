@@ -33,18 +33,18 @@ public class AdminStatsService {
         long totalTokens = tokenService.getTotalTokenCount();
         long activeTokens = tokenService.getActiveTokenCount();
 
-        return new AdminStatsDto(
-                totalUsers,
-                totalUsers,
-                notDeleted,
-                newUsersToday,
-                newUsersThisWeek,
-                newUsersLast7Days,
-                loggedInLast7Days,
-                deletedUsers,
-                totalNewsArticles,
-                totalTokens,
-                activeTokens
-        );
+        // Named setters, not the positional constructor: 10 longs in a row is how a field got passed twice.
+        AdminStatsDto dto = new AdminStatsDto();
+        dto.setTotalUsers(totalUsers);
+        dto.setActiveUsers(notDeleted);
+        dto.setNewUsersToday(newUsersToday);
+        dto.setNewUsersThisWeek(newUsersThisWeek);
+        dto.setNewUsersLast7Days(newUsersLast7Days);
+        dto.setLoggedInLast7Days(loggedInLast7Days);
+        dto.setDeletedUsers(deletedUsers);
+        dto.setTotalNewsArticles(totalNewsArticles);
+        dto.setTotalTokens(totalTokens);
+        dto.setActiveTokens(activeTokens);
+        return dto;
     }
 }
