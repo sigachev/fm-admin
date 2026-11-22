@@ -214,7 +214,10 @@ GET    /api/admin/tokens/sources/available   available tokens from a source (?so
 
 ### Platform Statistics
 ```
-GET    /api/admin/stats                   platform-wide counts (users, news, tokens)
+GET    /api/admin/stats                   platform-wide counts: totalUsers, activeUsers (not deleted), deletedUsers,
+                                          newUsersToday / ThisWeek / Last7Days, loggedInLast7Days, news, tokens.
+                                          loggedInLast7Days is a native count on users.last_login (column deliberately
+                                          NOT mapped on AdminUser: timestamp without tz, owned by finmates-main)
 ```
 
 ### User Ban Management (Prompt 6b — proxies to finmates-main /api/internal/users/*)

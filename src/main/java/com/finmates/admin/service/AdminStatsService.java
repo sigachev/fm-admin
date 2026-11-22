@@ -25,15 +25,23 @@ public class AdminStatsService {
         long totalUsers = userRepository.count();
         long newUsersToday = userRepository.countByCreatedAtAfter(startOfToday);
         long newUsersThisWeek = userRepository.countByCreatedAtAfter(startOfWeek);
+        long newUsersLast7Days = userRepository.countByCreatedAtAfter(now.minusDays(7));
+        long loggedInLast7Days = userRepository.countLoggedInWithinDays(7);
+        long deletedUsers = userRepository.countByDeletedAtIsNotNull();
+        long notDeleted = userRepository.countByDeletedAtIsNull();
         long totalNewsArticles = newsRepository.count();
         long totalTokens = tokenService.getTotalTokenCount();
         long activeTokens = tokenService.getActiveTokenCount();
 
         return new AdminStatsDto(
                 totalUsers,
-                totalUsers,          // activeUsers: same as totalUsers (no separate active count query)
+                totalUsers,
+                notDeleted,
                 newUsersToday,
                 newUsersThisWeek,
+                newUsersLast7Days,
+                loggedInLast7Days,
+                deletedUsers,
                 totalNewsArticles,
                 totalTokens,
                 activeTokens
